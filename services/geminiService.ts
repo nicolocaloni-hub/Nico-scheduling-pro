@@ -15,19 +15,30 @@ export const parseEighthsToFloat = (eighthsStr: string): number => {
 
 export interface HealthCheckResponse {
   ok: boolean;
-  reason?: string;
-  error?: string;
-  model?: string;
+  modelId?: string;
   text?: string;
-  // Added to match backend response and fix TS error in ScriptImport.tsx
-  fallbackUsed?: boolean;
+  error?: string;
 }
 
 export const checkAiHealth = async (): Promise<HealthCheckResponse> => {
-  const response = await fetch('/api/ai/health');
-  const data = await response.json();
-  // Ritorniamo direttamente il data perché ora contiene { ok: boolean, ... }
-  return data;
+  try {
+    const response = await fetch('/api/ai/health');
+    
+    // Controlliamo il content-type per evitare errori di parsing se il server ritorna HTML per errore
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+       const text = await response.text();
+       throw new Error(`Server returned non-JSON response: ${text.substring(0, 50)}...`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (e: any) {
+    return {
+      ok: false,
+      error: e.message || "Network or Parsing Error"
+    };
+  }
 };
 
 export const analyzeScriptPdf = async (
@@ -48,19 +59,17 @@ export const analyzeScriptPdf = async (
     onDebugInfo({
       status: response.status,
       modelUsed: result.modelUsed,
-      message: result.message || result.reason, // Gestisce sia il formato errore breakdown che health
+      message: result.message || result.error,
       error: result.error
     });
   }
 
   if (!result.ok && !response.ok) {
-    // Se la response è 400/500 e il body ha ok: false
-    throw new Error(result.reason || result.error || result.message || `Errore Server (${response.status})`);
+    throw new Error(result.error || result.message || `Errore Server (${response.status})`);
   }
   
-  // Caso in cui il backend torna 200 ma ok: false (raro con la logica attuale, ma sicuro)
   if (result.ok === false) {
-     throw new Error(result.error || result.reason || "Errore sconosciuto nell'analisi");
+     throw new Error(result.error || "Errore sconosciuto nell'analisi");
   }
 
   return result.data as BreakdownResult;

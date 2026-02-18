@@ -60,25 +60,25 @@ export const ScriptImport: React.FC = () => {
       const data = await checkAiHealth();
       
       if (data.ok) {
-        const modelDisplay = data.model + (data.fallbackUsed ? ' (Fallback)' : '');
-        addLog(`Health Check OK! Model: ${modelDisplay}`);
+        addLog(`Health Check OK! Model: ${data.modelId}`);
         addLog(`Risposta: "${data.text}"`);
         setDebug(d => ({ 
             ...d, 
             lastError: '', 
             state: 'healthy',
             healthStatus: `OK`,
-            activeModelId: modelDisplay
+            activeModelId: data.modelId || 'unknown'
         }));
       } else {
-        const errorMsg = data.reason || data.error || "Errore sconosciuto";
+        const errorMsg = data.error || "Errore sconosciuto";
         addLog(`Health Check FALLITO: ${errorMsg}`);
         setDebug(d => ({ 
             ...d, 
             lastError: errorMsg, 
             state: 'error',
-            healthStatus: 'FAILED',
-            httpStatus: data.reason === "Missing GEMINI_API_KEY" ? 400 : 500
+            healthStatus: 'ERROR',
+            activeModelId: data.modelId || 'unknown',
+            httpStatus: errorMsg.includes("Missing GEMINI_API_KEY") ? 400 : 500
         }));
       }
 
@@ -336,7 +336,7 @@ export const ScriptImport: React.FC = () => {
                 </h3>
                 <div className="flex gap-2">
                     {debug.healthStatus && (
-                        <span className={`px-2 py-0.5 rounded ${debug.healthStatus.includes('FAILED') || debug.healthStatus.includes('NET_ERR') ? 'bg-red-900/50 text-red-400' : 'bg-green-900/50 text-green-400'}`}>
+                        <span className={`px-2 py-0.5 rounded ${debug.healthStatus.includes('ERROR') || debug.healthStatus.includes('NET_ERR') ? 'bg-red-900/50 text-red-400' : 'bg-green-900/50 text-green-400'}`}>
                             HEALTH: {debug.healthStatus}
                         </span>
                     )}

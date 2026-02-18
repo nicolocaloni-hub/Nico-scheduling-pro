@@ -1,58 +1,51 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { PRIMARY_MODEL_ID, FALLBACK_MODEL_ID } from "../../lib/ai/config";
+import { PRIMARY_MODEL_ID } from "../../lib/ai/config";
 
 export default async function handler(req: any, res: any) {
-  // 1. Lettura sicura della chiave
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-
-  if (!apiKey) {
-    return res.status(400).json({ 
-      ok: false, 
-      reason: "Missing GEMINI_API_KEY" 
-    });
-  }
+  // Garantisce che la risposta sia sempre interpretata come JSON
+  res.setHeader('Content-Type', 'application/json');
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    let modelUsed = PRIMARY_MODEL_ID;
-    let fallbackUsed = false;
-    let text = "";
+    // 1. Lettura sicura della chiave
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
-    try {
-      // Tentativo 1: Modello Primario
-      const response = await ai.models.generateContent({
-        model: PRIMARY_MODEL_ID,
-        contents: 'ping. rispondi solo con "pong"',
+    if (!apiKey) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: "Missing GEMINI_API_KEY" 
       });
-      text = response.text || "";
-    } catch (primaryError: any) {
-      console.warn(`[Health API] Primary model ${PRIMARY_MODEL_ID} failed: ${primaryError.message}. Switching to fallback.`);
-      
-      // Tentativo 2: Modello Fallback
-      modelUsed = FALLBACK_MODEL_ID;
-      fallbackUsed = true;
-      const response = await ai.models.generateContent({
-        model: FALLBACK_MODEL_ID,
-        contents: 'ping. rispondi solo con "pong"',
-      });
-      text = response.text || "";
     }
 
+    // 2. Configurazione Client
+    const ai = new GoogleGenAI({ apiKey });
+    const modelId = PRIMARY_MODEL_ID; // Usiamo gemini-2.0-flash come da config
+
+    // 3. Esecuzione Test (Ping)
+    // Non usiamo il config fallback qui per mantenere il test semplice e diretto sul modello primario
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: 'ping',
+    });
+
+    const text = response.text || "";
+
+    // 4. Risposta Successo
     return res.status(200).json({
       ok: true,
-      model: modelUsed,
-      fallbackUsed,
+      modelId: modelId,
       text: text.trim(),
-      timestamp: new Date().toISOString()
     });
 
   } catch (error: any) {
-    console.error("[Health API] Fatal Error:", error);
+    console.error("[Health API] Error:", error);
+
+    // 5. Risposta Errore (gestisce anche errori API Gemini)
+    // Importante: status 500 ma contenuto JSON valido
     return res.status(500).json({
       ok: false,
-      error: error.message || "Unknown error connecting to Gemini",
-      code: error.status || 500
+      modelId: PRIMARY_MODEL_ID,
+      error: error.message || "Internal Server Error"
     });
   }
 }
