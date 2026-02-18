@@ -32,7 +32,8 @@ export const ScriptImport: React.FC = () => {
     state: 'idle',
     lastError: '',
     activeModelId: 'attesa...',
-    httpStatus: 0
+    httpStatus: 0,
+    healthStatus: '' // Nuovo stato per il risultato health
   });
 
   const addLog = (msg: string) => {
@@ -53,14 +54,37 @@ export const ScriptImport: React.FC = () => {
   const runHealthCheck = async () => {
     setHealthLoading(true);
     addLog("Avvio Health Check...");
+    setDebug(d => ({ ...d, healthStatus: 'Checking...' }));
+    
     try {
       const data = await checkAiHealth();
-      addLog(`Health Check OK: ${data.message}`);
-      addLog(`Modelli disponibili: ${data.availableModels?.join(', ')}`);
-      setDebug(d => ({ ...d, lastError: '', state: 'healthy' }));
+      
+      if (data.ok) {
+        addLog(`Health Check OK! Model: ${data.model}`);
+        addLog(`Risposta: "${data.text}"`);
+        setDebug(d => ({ 
+            ...d, 
+            lastError: '', 
+            state: 'healthy',
+            healthStatus: `OK (${data.model})`,
+            activeModelId: data.model || 'unknown'
+        }));
+      } else {
+        // Gestione specifica per Missing Key
+        const errorMsg = data.reason || data.error || "Errore sconosciuto";
+        addLog(`Health Check FALLITO: ${errorMsg}`);
+        setDebug(d => ({ 
+            ...d, 
+            lastError: errorMsg, 
+            state: 'error',
+            healthStatus: 'FAILED',
+            httpStatus: data.reason === "Missing GEMINI_API_KEY" ? 400 : 500
+        }));
+      }
+
     } catch (e: any) {
-      addLog(`Health Check FALLITO: ${e.message}`);
-      setDebug(d => ({ ...d, lastError: e.message, state: 'error' }));
+      addLog(`Errore di rete/client: ${e.message}`);
+      setDebug(d => ({ ...d, lastError: e.message, state: 'error', healthStatus: 'NET_ERR' }));
     } finally {
       setHealthLoading(false);
     }
@@ -289,31 +313,33 @@ export const ScriptImport: React.FC = () => {
         <div className="flex gap-4 items-center justify-center">
             <Button 
               variant="secondary" 
-              className="text-xs py-2 h-10 px-6" 
+              className="text-xs py-2 h-10 px-6 border-gray-700 bg-gray-900 hover:bg-gray-800" 
               onClick={runHealthCheck}
               disabled={healthLoading || isAnalyzing}
             >
-              {healthLoading ? 'Controllo...' : 'Test AI Health'}
+              {healthLoading ? (
+                  <span className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-primary-500 rounded-full animate-ping"></div>
+                      Checking...
+                  </span>
+              ) : 'Test AI Health (Ping)'}
             </Button>
         </div>
 
         {/* Debug & Error Console */}
         <div className="bg-gray-950 border border-gray-800 rounded-2xl p-5 font-mono text-[10px] space-y-4 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-primary-600"></div>
+            <div className={`absolute top-0 left-0 w-1 h-full transition-colors duration-300 ${debug.state === 'error' ? 'bg-red-500' : 'bg-primary-600'}`}></div>
             <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                 <h3 className="text-primary-500 font-bold uppercase tracking-tighter flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+                    <span className={`w-2 h-2 rounded-full ${debug.state === 'error' ? 'bg-red-500' : 'bg-primary-500 animate-pulse'}`}></span>
                     Debug Console
                 </h3>
                 <div className="flex gap-2">
-                    {debug.httpStatus > 0 && (
-                        <span className={`px-2 py-0.5 rounded ${debug.httpStatus === 200 ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
-                            HTTP {debug.httpStatus}
+                    {debug.healthStatus && (
+                        <span className={`px-2 py-0.5 rounded ${debug.healthStatus.includes('FAILED') || debug.healthStatus.includes('NET_ERR') ? 'bg-red-900/50 text-red-400' : 'bg-green-900/50 text-green-400'}`}>
+                            HEALTH: {debug.healthStatus}
                         </span>
                     )}
-                    <span className={`px-2 py-0.5 rounded ${debug.state === 'error' ? 'bg-red-900/50 text-red-400' : 'bg-gray-800 text-gray-400'}`}>
-                        {debug.state.toUpperCase()}
-                    </span>
                 </div>
             </div>
             
@@ -330,7 +356,10 @@ export const ScriptImport: React.FC = () => {
 
             {debug.lastError && (
               <div className="p-3 bg-red-950/20 border border-red-900/30 rounded-lg text-red-400/90 leading-relaxed">
-                <strong className="block text-[9px] uppercase mb-1 text-red-500">Ultimo Errore:</strong>
+                <strong className="block text-[9px] uppercase mb-1 text-red-500 flex items-center gap-2">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Ultimo Errore:
+                </strong>
                 {debug.lastError}
               </div>
             )}

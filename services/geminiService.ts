@@ -13,10 +13,18 @@ export const parseEighthsToFloat = (eighthsStr: string): number => {
   return whole + (eighths / 8);
 };
 
-export const checkAiHealth = async () => {
+export interface HealthCheckResponse {
+  ok: boolean;
+  reason?: string;
+  error?: string;
+  model?: string;
+  text?: string;
+}
+
+export const checkAiHealth = async (): Promise<HealthCheckResponse> => {
   const response = await fetch('/api/ai/health');
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "Health check fallito");
+  // Ritorniamo direttamente il data perché ora contiene { ok: boolean, ... }
   return data;
 };
 
@@ -38,13 +46,19 @@ export const analyzeScriptPdf = async (
     onDebugInfo({
       status: response.status,
       modelUsed: result.modelUsed,
-      message: result.message,
+      message: result.message || result.reason, // Gestisce sia il formato errore breakdown che health
       error: result.error
     });
   }
 
-  if (!response.ok) {
-    throw new Error(result.error || result.message || `Errore Server (${response.status})`);
+  if (!result.ok && !response.ok) {
+    // Se la response è 400/500 e il body ha ok: false
+    throw new Error(result.reason || result.error || result.message || `Errore Server (${response.status})`);
+  }
+  
+  // Caso in cui il backend torna 200 ma ok: false (raro con la logica attuale, ma sicuro)
+  if (result.ok === false) {
+     throw new Error(result.error || result.reason || "Errore sconosciuto nell'analisi");
   }
 
   return result.data as BreakdownResult;
