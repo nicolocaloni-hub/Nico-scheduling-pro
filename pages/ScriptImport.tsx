@@ -33,7 +33,7 @@ export const ScriptImport: React.FC = () => {
     lastError: '',
     activeModelId: 'attesa...',
     httpStatus: 0,
-    healthStatus: '' // Nuovo stato per il risultato health
+    healthStatus: '' 
   });
 
   const addLog = (msg: string) => {
@@ -60,17 +60,17 @@ export const ScriptImport: React.FC = () => {
       const data = await checkAiHealth();
       
       if (data.ok) {
-        addLog(`Health Check OK! Model: ${data.model}`);
+        const modelDisplay = data.model + (data.fallbackUsed ? ' (Fallback)' : '');
+        addLog(`Health Check OK! Model: ${modelDisplay}`);
         addLog(`Risposta: "${data.text}"`);
         setDebug(d => ({ 
             ...d, 
             lastError: '', 
             state: 'healthy',
-            healthStatus: `OK (${data.model})`,
-            activeModelId: data.model || 'unknown'
+            healthStatus: `OK`,
+            activeModelId: modelDisplay
         }));
       } else {
-        // Gestione specifica per Missing Key
         const errorMsg = data.reason || data.error || "Errore sconosciuto";
         addLog(`Health Check FALLITO: ${errorMsg}`);
         setDebug(d => ({ 

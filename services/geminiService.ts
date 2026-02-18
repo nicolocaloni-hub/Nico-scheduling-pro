@@ -19,6 +19,8 @@ export interface HealthCheckResponse {
   error?: string;
   model?: string;
   text?: string;
+  // Added to match backend response and fix TS error in ScriptImport.tsx
+  fallbackUsed?: boolean;
 }
 
 export const checkAiHealth = async (): Promise<HealthCheckResponse> => {

@@ -1,12 +1,12 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
+import { PRIMARY_MODEL_ID, FALLBACK_MODEL_ID } from "../../lib/ai/config";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
   }
 
-  // 1. Controllo Chiave
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
   if (!apiKey) {
@@ -23,8 +23,8 @@ export default async function handler(req: any, res: any) {
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Lista modelli in ordine di preferenza
-  const MODELS_TO_TRY = ['gemini-3-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash-latest'];
+  // Array modelli da provare in sequenza (dal config)
+  const MODELS_TO_TRY = [PRIMARY_MODEL_ID, FALLBACK_MODEL_ID];
   
   const prompt = `
     Sei un esperto Assistente alla Regia. Analizza il PDF allegato e genera un breakdown professionale in JSON.
@@ -72,7 +72,6 @@ export default async function handler(req: any, res: any) {
 
   let lastError = null;
 
-  // 2. Loop Fallback Modelli
   for (const modelId of MODELS_TO_TRY) {
     try {
       console.log(`[Breakdown API] Tentativo con: ${modelId}`);
@@ -99,6 +98,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({
         ok: true,
         modelUsed: modelId,
+        fallback: modelId !== PRIMARY_MODEL_ID,
         data: JSON.parse(response.text)
       });
 
@@ -106,14 +106,15 @@ export default async function handler(req: any, res: any) {
       console.error(`[Breakdown API] Errore con ${modelId}:`, error.message);
       lastError = error;
       
-      // Se è un errore di "Precondition check failed" o 400 sulla chiave, è inutile riprovare
+      // Se l'errore è relativo alla chiave API invalida, fermiamoci subito
       if (error.message && (error.message.includes('API key') || error.status === 400)) {
          return res.status(400).json({ ok: false, message: "Invalid API Key or Bad Request", error: error.message });
       }
+      // Altrimenti (es. 404 Model Not Found), continua con il prossimo modello nel loop
     }
   }
 
-  // Fallimento totale
+  // Se siamo qui, entrambi i modelli hanno fallito
   return res.status(500).json({
     ok: false,
     message: "Tutti i tentativi di analisi sono falliti.",

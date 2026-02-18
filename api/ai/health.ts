@@ -1,8 +1,9 @@
 
 import { GoogleGenAI } from "@google/genai";
+import { PRIMARY_MODEL_ID, FALLBACK_MODEL_ID } from "../../lib/ai/config";
 
 export default async function handler(req: any, res: any) {
-  // 1. Lettura sicura della chiave (Priorità a GEMINI_API_KEY)
+  // 1. Lettura sicura della chiave
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
   if (!apiKey) {
@@ -13,32 +14,41 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // 2. Inizializzazione Client
     const ai = new GoogleGenAI({ apiKey });
-    
-    // Modello rapido per il ping test
-    const modelName = 'gemini-2.5-flash-latest';
+    let modelUsed = PRIMARY_MODEL_ID;
+    let fallbackUsed = false;
+    let text = "";
 
-    // 3. Chiamata di test ("ping")
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: 'ping. rispondi solo con "pong"',
-    });
+    try {
+      // Tentativo 1: Modello Primario
+      const response = await ai.models.generateContent({
+        model: PRIMARY_MODEL_ID,
+        contents: 'ping. rispondi solo con "pong"',
+      });
+      text = response.text || "";
+    } catch (primaryError: any) {
+      console.warn(`[Health API] Primary model ${PRIMARY_MODEL_ID} failed: ${primaryError.message}. Switching to fallback.`);
+      
+      // Tentativo 2: Modello Fallback
+      modelUsed = FALLBACK_MODEL_ID;
+      fallbackUsed = true;
+      const response = await ai.models.generateContent({
+        model: FALLBACK_MODEL_ID,
+        contents: 'ping. rispondi solo con "pong"',
+      });
+      text = response.text || "";
+    }
 
-    const text = response.text || "";
-
-    // 4. Risposta successo
     return res.status(200).json({
       ok: true,
-      model: modelName,
-      text: text.trim(), // Dovrebbe essere "pong"
+      model: modelUsed,
+      fallbackUsed,
+      text: text.trim(),
       timestamp: new Date().toISOString()
     });
 
   } catch (error: any) {
-    console.error("[Health API] Error:", error);
-
-    // 5. Risposta errore server
+    console.error("[Health API] Fatal Error:", error);
     return res.status(500).json({
       ok: false,
       error: error.message || "Unknown error connecting to Gemini",
