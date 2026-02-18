@@ -5,7 +5,8 @@ export const runtime = 'nodejs';
 
 export default async function handler(req: any, res: any) {
   try {
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    // FIX: Strictly use process.env.API_KEY as the exclusive source.
+    const apiKey = process.env.API_KEY;
     
     const diagnostics = {
       hasApiKey: !!apiKey,
@@ -17,12 +18,13 @@ export default async function handler(req: any, res: any) {
     if (!apiKey) {
       return res.status(500).json({ 
         status: "error", 
-        message: "API_KEY non configurata. Assicurati che su Vercel la variabile si chiami API_KEY o GEMINI_API_KEY e sia attiva per l'ambiente corrente.",
+        message: "API_KEY non configurata.",
         diagnostics
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    // FIX: Use named parameter for GoogleGenAI initialization.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const testResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: 'ping',
@@ -33,6 +35,7 @@ export default async function handler(req: any, res: any) {
       message: "Comunicazione con Google Gemini stabilita.",
       diagnostics: {
         ...diagnostics,
+        // FIX: Access text property directly.
         modelResponse: testResponse.text?.trim()
       }
     });
@@ -40,7 +43,7 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({
       status: "error",
       message: error.message || "Impossibile contattare l'API Gemini.",
-      diagnostics: { hasApiKey: !!(process.env.API_KEY || process.env.GEMINI_API_KEY) }
+      diagnostics: { hasApiKey: !!process.env.API_KEY }
     });
   }
 }

@@ -6,22 +6,25 @@ export const runtime = 'nodejs';
 export default async function handler(req: any, res: any) {
   const modelId = "gemini-3-flash-preview";
   try {
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    // FIX: Strictly use process.env.API_KEY.
+    const apiKey = process.env.API_KEY;
 
     if (!apiKey) {
       return res.status(400).json({ 
         ok: false, 
         modelId, 
-        error: "Chiave API mancante (API_KEY o GEMINI_API_KEY)" 
+        error: "Chiave API mancante (API_KEY)" 
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    // FIX: Use named parameter for GoogleGenAI initialization.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: modelId,
       contents: "ping",
     });
 
+    // FIX: Access text property directly.
     return res.status(200).json({
       ok: true,
       modelId,

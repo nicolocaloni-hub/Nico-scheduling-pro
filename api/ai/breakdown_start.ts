@@ -15,7 +15,7 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Usa POST' });
 
   const { pdfBase64 } = req.body;
-  // Use process.env.API_KEY as the exclusive source for the API key
+  // FIX: Strictly use process.env.API_KEY.
   const apiKey = process.env.API_KEY;
 
   if (!apiKey) return res.status(500).json({ message: "API_KEY mancante" });
@@ -29,16 +29,17 @@ export default async function handler(req: any, res: any) {
     id: jobId,
     status: 'queued',
     step: 'File ricevuto, avvio analisi...',
-    // Estimate bytes from base64 string to avoid Buffer dependency in TS environments
+    // Estimate bytes from base64 string
     inputBytes: Math.floor((pdfBase64.length * 3) / 4),
     timestamp: Date.now()
   };
   jobs.set(jobId, jobState);
 
-  // Esecuzione "asincrona" (non attendiamo la fine per rispondere al client)
+  // Esecuzione "asincrona"
   (async () => {
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      // FIX: Use named parameter for GoogleGenAI initialization and strictly process.env.API_KEY.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const modelId = 'gemini-3-flash-preview';
       
       jobState.status = 'running';
@@ -87,14 +88,13 @@ export default async function handler(req: any, res: any) {
 
       const response = await ai.models.generateContent({
         model: modelId,
-        contents: [
-          {
-            parts: [
-              { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
-              { text: "Analizza questo copione e crea uno spoglio completo delle scene." }
-            ]
-          }
-        ],
+        // FIX: Use object format for contents with parts.
+        contents: {
+          parts: [
+            { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
+            { text: "Analizza questo copione e crea uno spoglio completo delle scene." }
+          ]
+        },
         config: {
           systemInstruction,
           responseMimeType: 'application/json',
@@ -102,6 +102,7 @@ export default async function handler(req: any, res: any) {
         }
       });
 
+      // FIX: Access text property directly.
       const rawText = response.text || "";
       jobState.rawPreview = rawText.substring(0, 1500);
       jobState.status = 'parsing';
