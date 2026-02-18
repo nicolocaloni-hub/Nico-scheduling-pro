@@ -52,6 +52,22 @@ export const ScriptImport: React.FC = () => {
     addLog(`File selezionato: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
   };
 
+  const checkServerEnv = async () => {
+    addLog("[UI] Controllo ambiente server...");
+    try {
+      const res = await fetch('/api/ai/env');
+      const data = await res.json();
+      addLog(`[SERVER] Env: ${data.vercelEnv}, Key Present: ${data.keyPresent}`);
+      if (data.details) {
+        Object.entries(data.details).forEach(([key, val]) => {
+          addLog(`[SERVER] ${key}: ${val ? 'Sì' : 'No'}`);
+        });
+      }
+    } catch (err: any) {
+      addLog(`[ERROR] Errore controllo env: ${err.message}`);
+    }
+  };
+
   const startAnalysis = async () => {
     if (!selectedFile || !projectId) return;
     
@@ -60,9 +76,6 @@ export const ScriptImport: React.FC = () => {
     setError(null);
 
     try {
-      // Usiamo FileReader per convertire in base64 e inviare al backend
-      // (Data la natura delle serverless functions, l'invio via base64 è spesso più stabile
-      // rispetto ai flussi multipart complessi se non configurati perfettamente)
       addLog("Conversione file in corso...");
       
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -97,7 +110,6 @@ export const ScriptImport: React.FC = () => {
       addLog(`Analisi completata! Modello: ${result.modelUsed}`);
       setSummary(result.summary);
       
-      // Salvataggio nel DB locale
       await saveResultsToDb(result.data);
       
       setImportState('done');
@@ -180,7 +192,6 @@ export const ScriptImport: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* PDF Preview Area */}
         <div className="lg:col-span-7 space-y-4">
           <div className="bg-gray-800 rounded-3xl overflow-hidden border border-gray-700 shadow-2xl relative">
             <div className="bg-gray-900 p-4 border-b border-gray-700 flex justify-between items-center">
@@ -227,9 +238,7 @@ export const ScriptImport: React.FC = () => {
           </div>
         </div>
 
-        {/* Debug & Summary Area */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Summary Panel */}
           {summary && (
             <div className="bg-gray-800 border border-primary-500/30 rounded-3xl p-6 shadow-xl">
               <h2 className="text-sm font-black text-primary-500 uppercase tracking-widest mb-4">Risultati Estratti</h2>
@@ -254,7 +263,6 @@ export const ScriptImport: React.FC = () => {
             </div>
           )}
 
-          {/* Debug Console */}
           <div className="bg-black border border-gray-800 rounded-3xl p-6 font-mono text-[10px] space-y-4 shadow-xl flex flex-col h-[400px]">
             <div className="flex justify-between items-center border-b border-gray-800 pb-3">
               <span className="text-green-500 font-bold flex items-center gap-2">
@@ -283,9 +291,14 @@ export const ScriptImport: React.FC = () => {
               </div>
             )}
             
-            <Button variant="ghost" className="text-[9px] h-7 py-0 opacity-50 hover:opacity-100" onClick={() => setLogs([])}>
-              Clear Logs
-            </Button>
+            <div className="flex gap-2 mt-2">
+              <Button variant="ghost" className="text-[9px] h-7 py-0 opacity-50 hover:opacity-100 flex-1" onClick={() => setLogs([])}>
+                Clear Logs
+              </Button>
+              <Button variant="secondary" className="text-[9px] h-7 py-0 flex-1" onClick={checkServerEnv}>
+                Check Server Env
+              </Button>
+            </div>
           </div>
         </div>
       </div>

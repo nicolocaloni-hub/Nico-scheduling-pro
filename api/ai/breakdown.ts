@@ -11,22 +11,18 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // FIX: The API key must be obtained exclusively from process.env.API_KEY.
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
       console.error("[API] Missing API_KEY");
-      return res.status(500).json({ ok: false, error: "Chiave API Gemini non configurata nel server." });
+      return res.status(400).json({ ok: false, error: "Missing API_KEY configuration on server." });
     }
 
-    // FIX: Use req.body directly as it is automatically parsed by Vercel for application/json.
-    // This removes the dependency on the Buffer global, fixing the "Cannot find name 'Buffer'" error.
     const { pdfBase64 } = req.body || {};
 
     if (!pdfBase64 || pdfBase64.length < 10) {
       return res.status(400).json({ ok: false, error: "Contenuto PDF vuoto o non valido." });
     }
 
-    // FIX: Always use a named parameter when initializing GoogleGenAI.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const modelId = 'gemini-3-flash-preview';
     
@@ -75,7 +71,6 @@ elementi (nome, categoria come Cast, Props, etc), e mappa quali elementi appaion
       required: ["scenes", "elements", "sceneElements"]
     };
 
-    // FIX: Use the recommended contents structure for multi-part requests.
     const result = await ai.models.generateContent({
       model: modelId,
       contents: {
@@ -92,7 +87,6 @@ elementi (nome, categoria come Cast, Props, etc), e mappa quali elementi appaion
     });
 
     console.log("[API] Gemini response received");
-    // FIX: Access the text property directly (do not call text()).
     const rawJson = result.text || "{}";
     const data = JSON.parse(rawJson);
 

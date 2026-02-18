@@ -5,7 +5,6 @@ export const runtime = 'nodejs';
 
 export default async function handler(req: any, res: any) {
   try {
-    // FIX: Strictly use process.env.API_KEY as the exclusive source.
     const apiKey = process.env.API_KEY;
     
     const diagnostics = {
@@ -16,31 +15,33 @@ export default async function handler(req: any, res: any) {
     };
 
     if (!apiKey) {
-      return res.status(500).json({ 
+      return res.status(400).json({ 
+        ok: false,
         status: "error", 
-        message: "API_KEY non configurata.",
+        message: "API_KEY non configurata nel server (process.env.API_KEY).",
         diagnostics
       });
     }
 
-    // FIX: Use named parameter for GoogleGenAI initialization.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const testResponse = await ai.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: 'ping',
     });
 
     return res.status(200).json({
+      ok: true,
       status: "ok",
       message: "Comunicazione con Google Gemini stabilita.",
       diagnostics: {
         ...diagnostics,
-        // FIX: Access text property directly.
-        modelResponse: testResponse.text?.trim()
+        modelResponse: response.text?.trim()
       }
     });
   } catch (error: any) {
+    console.error("[HEALTH ERROR]", error);
     return res.status(500).json({
+      ok: false,
       status: "error",
       message: error.message || "Impossibile contattare l'API Gemini.",
       diagnostics: { hasApiKey: !!process.env.API_KEY }
