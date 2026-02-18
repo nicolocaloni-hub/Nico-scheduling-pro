@@ -1,5 +1,5 @@
 
-import { BreakdownResult, Scene } from "../types";
+import { BreakdownResult, Scene, AnalysisJob } from "../types";
 
 export const parseEighthsToFloat = (eighthsStr: string): number => {
   if (!eighthsStr) return 0;
@@ -13,23 +13,24 @@ export const parseEighthsToFloat = (eighthsStr: string): number => {
   return whole + (eighths / 8);
 };
 
-/**
- * Utility per gestire le fetch in modo sicuro, evitando crash in caso di risposte non-JSON
- */
 const safeFetch = async (url: string, options?: RequestInit) => {
-  const response = await fetch(url, options);
-  const contentType = response.headers.get("content-type");
-  
-  if (contentType && contentType.includes("application/json")) {
-    const data = await response.json();
-    return { ok: response.ok, status: response.status, data };
-  } else {
-    const text = await response.text();
-    return { 
-      ok: false, 
-      status: response.status, 
-      error: `Risposta non JSON: ${text.substring(0, 100)}...` 
-    };
+  try {
+    const response = await fetch(url, options);
+    const contentType = response.headers.get("content-type");
+    
+    if (contentType && contentType.includes("application/json")) {
+      const data = await response.json();
+      return { ok: response.ok, status: response.status, data };
+    } else {
+      const text = await response.text();
+      return { 
+        ok: false, 
+        status: response.status, 
+        error: `Risposta non JSON: ${text.substring(0, 100)}...` 
+      };
+    }
+  } catch (err: any) {
+    return { ok: false, status: 0, error: err.message };
   }
 };
 
@@ -41,10 +42,26 @@ export const runSimpleTest = async () => {
   return await safeFetch('/api/ai/simple-test');
 };
 
-export const checkAiHealth = async () => {
-  const { ok, data, error } = await safeFetch('/api/ai/health');
-  if (!ok) throw new Error(error || data?.message || "Health check fallito");
-  return data;
+export const startScriptAnalysis = async (pdfBase64: string): Promise<string> => {
+  const { ok, data, error } = await safeFetch('/api/ai/breakdown_start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pdfBase64 })
+  });
+  if (!ok) throw new Error(error || data?.message || "Impossibile avviare l'analisi");
+  return data.jobId;
+};
+
+export const getAnalysisStatus = async (jobId: string): Promise<AnalysisJob> => {
+  const { ok, data, error } = await safeFetch(`/api/ai/breakdown_status?jobId=${jobId}`);
+  if (!ok) throw new Error(error || data?.message || "Errore nel recupero dello stato");
+  return data.job;
+};
+
+export const getAnalysisResult = async (jobId: string): Promise<BreakdownResult> => {
+  const { ok, data, error } = await safeFetch(`/api/ai/breakdown_result?jobId=${jobId}`);
+  if (!ok) throw new Error(error || data?.message || "Errore nel recupero del risultato");
+  return data.result;
 };
 
 export const optimizeSchedule = async (scenes: Scene[]): Promise<string[]> => {
@@ -53,7 +70,6 @@ export const optimizeSchedule = async (scenes: Scene[]): Promise<string[]> => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ scenes })
   });
-  
   if (!ok) throw new Error(error || data?.message || "Ottimizzazione fallita");
   return data.orderedSceneIds;
 };
@@ -62,6 +78,7 @@ export const analyzeScriptPdf = async (
   pdfBase64: string, 
   onDebugInfo?: (info: any) => void
 ): Promise<BreakdownResult> => {
+  // Metodo legacy mantenuto per compatibilità, ma ora useremo il nuovo workflow job-based
   const { ok, status, data, error } = await safeFetch('/api/ai/breakdown', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

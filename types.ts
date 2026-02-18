@@ -39,8 +39,8 @@ export interface Scene {
   dayNight: DayNight;
   locationName: string;
   setName: string;
-  pages: number; // Stored as float (e.g., 1.5 for 1 4/8)
-  pageCountInEighths: string; // e.g., "1 4/8"
+  pages: number; 
+  pageCountInEighths: string; 
   synopsis: string;
   scriptText?: string;
   elementIds: string[];
@@ -97,6 +97,26 @@ export interface Stripboard {
   strips: Strip[];
 }
 
+// Nuovi tipi per l'analisi Job-based
+export type JobStatus = 'queued' | 'running' | 'parsing' | 'done' | 'error';
+
+export interface AnalysisJob {
+  id: string;
+  status: JobStatus;
+  step: string;
+  modelId?: string;
+  inputBytes?: number;
+  rawPreview?: string;
+  error?: string;
+  resultSummary?: {
+    sceneCount: number;
+    locationCount: number;
+    castCount: number;
+    propsCount: number;
+  };
+  result?: BreakdownResult;
+}
+
 export interface BreakdownResult {
   scenes: {
     sceneNumber: string;
@@ -112,5 +132,5 @@ export interface BreakdownResult {
     name: string; 
     category: string; 
   }[];
-  sceneElements: Record<string, string[]>; // Mapping sceneNumber -> element names
+  sceneElements: Record<string, string[]>;
 }
