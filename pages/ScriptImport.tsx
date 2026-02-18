@@ -56,35 +56,37 @@ export const ScriptImport: React.FC = () => {
 
   const runFullDiagnostics = async () => {
     setDebugLoading(true);
+    setDebug(d => ({ ...d, lastError: '' }));
     addLog("Avvio diagnostica completa...");
     
     try {
-      // 1. Controllo ENV
+      // 1. Controllo ENV tramite endpoint server
       const envRes = await checkAiEnv();
-      if (envRes.ok) {
+      if (envRes.ok && envRes.data) {
         setDebug(d => ({ 
           ...d, 
           keyEnv: envRes.data.keyPresent ? 'PRESENT' : 'MISSING',
-          vercelEnv: envRes.data.vercelEnv 
+          vercelEnv: envRes.data.vercelEnv || 'N/A'
         }));
         addLog(`Server Env: ${envRes.data.vercelEnv}, Key: ${envRes.data.keyPresent ? 'Presente' : 'Assente'}`);
       } else {
-        setDebug(d => ({ ...d, keyEnv: 'ERROR' }));
+        setDebug(d => ({ ...d, keyEnv: 'ERROR', lastError: envRes.error }));
         addLog(`Errore Env: ${envRes.error}`);
       }
 
-      // 2. Simple Test (Gemini 2.0)
+      // 2. Simple Test (Gemini Connectivity)
       const testRes = await runSimpleTest();
-      if (testRes.ok) {
+      if (testRes.ok && testRes.data) {
         setDebug(d => ({ ...d, serverHealth: 'OK', activeModelId: testRes.data.modelId }));
-        addLog(`Test Gemini 2.0: Successo (${testRes.data.modelId})`);
+        addLog(`Test Gemini: Successo (${testRes.data.modelId})`);
       } else {
-        setDebug(d => ({ ...d, serverHealth: 'ERROR', lastError: testRes.error || testRes.data?.error }));
-        addLog(`Test Gemini 2.0: Fallito - ${testRes.error || testRes.data?.error}`);
+        setDebug(d => ({ ...d, serverHealth: 'ERROR', lastError: testRes.error || (testRes.data && testRes.data.error) }));
+        addLog(`Test Gemini: Fallito - ${testRes.error || (testRes.data && testRes.data.error)}`);
       }
 
     } catch (e: any) {
       addLog(`Diagnostica fallita: ${e.message}`);
+      setDebug(d => ({ ...d, lastError: e.message }));
     } finally {
       setDebugLoading(false);
     }
@@ -268,7 +270,7 @@ export const ScriptImport: React.FC = () => {
     <div className="max-w-2xl mx-auto space-y-10 py-12 px-4">
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-black">Importa Sceneggiatura</h1>
-        <p className="text-gray-400">Analisi automatica basata su Gemini 2.0</p>
+        <p className="text-gray-400">Analisi automatica basata su Gemini AI</p>
       </div>
 
       <div className="space-y-6">
@@ -308,7 +310,10 @@ export const ScriptImport: React.FC = () => {
                 <Button 
                     variant="secondary" 
                     className="text-[9px] h-7 px-3 py-0" 
-                    onClick={runFullDiagnostics}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      runFullDiagnostics();
+                    }}
                     disabled={debugLoading}
                 >
                     {debugLoading ? 'Testing...' : 'RE-CHECK'}
@@ -326,8 +331,8 @@ export const ScriptImport: React.FC = () => {
 
             {debug.lastError && (
               <div className="p-3 bg-red-950/20 border border-red-900/30 rounded-xl text-red-400/90 leading-relaxed text-[10px] overflow-hidden">
-                <strong className="block text-red-500 uppercase mb-1">Last Error:</strong>
-                {debug.lastError}
+                <strong className="block text-red-500 uppercase mb-1">Last Error Preview:</strong>
+                <div className="truncate">{debug.lastError}</div>
               </div>
             )}
 

@@ -1,22 +1,22 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+export const runtime = 'nodejs';
+
 export default async function handler(req: any, res: any) {
-  // Using recommended model name for basic text tasks
   const modelId = "gemini-3-flash-preview";
   try {
-    // Exclusively use process.env.API_KEY as per guidelines
+    // La chiave API deve essere ottenuta esclusivamente da process.env.API_KEY
     const apiKey = process.env.API_KEY;
 
     if (!apiKey) {
       return res.status(400).json({ 
         ok: false, 
         modelId, 
-        error: "Chiave API mancante (API_KEY)" 
+        error: "Missing API_KEY in server environment" 
       });
     }
 
-    // Always initialize with { apiKey: process.env.API_KEY }
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: modelId,
@@ -33,7 +33,7 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({
       ok: false,
       modelId,
-      error: error.message || "Errore durante il test di Gemini"
+      error: error.message || "Errore durante la chiamata a Gemini"
     });
   }
 }
