@@ -1,24 +1,24 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+export const runtime = 'nodejs';
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Metodo non consentito' });
   }
 
   const { scenes } = req.body;
-  // Exclusively use process.env.API_KEY as per guidelines
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ message: "Chiave API mancante sul server." });
+    return res.status(500).json({ message: "Chiave API mancante sul server. Verifica API_KEY o GEMINI_API_KEY." });
   }
 
   if (!scenes || !Array.isArray(scenes)) {
     return res.status(400).json({ message: "Dati scene mancanti o non validi." });
   }
 
-  // Always initialize with { apiKey: process.env.API_KEY }
   const ai = new GoogleGenAI({ apiKey });
   
   const systemInstruction = `Sei un esperto Primo Assistente alla Regia (1st AD).
@@ -33,7 +33,6 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON con la chiave "orderedSceneIds" conte
 
   try {
     const response = await ai.models.generateContent({
-      // Using gemini-3-pro-preview for complex reasoning/optimization tasks
       model: 'gemini-3-pro-preview',
       contents: `Ottimizza queste scene: ${JSON.stringify(scenes.map(s => ({ 
         id: s.id, 
@@ -59,7 +58,6 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON con la chiave "orderedSceneIds" conte
       }
     });
 
-    // response.text is a getter, not a method
     const result = JSON.parse(response.text || "{}");
     return res.status(200).json(result);
   } catch (error: any) {

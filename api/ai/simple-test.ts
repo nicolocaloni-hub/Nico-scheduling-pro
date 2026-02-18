@@ -6,14 +6,13 @@ export const runtime = 'nodejs';
 export default async function handler(req: any, res: any) {
   const modelId = "gemini-3-flash-preview";
   try {
-    // La chiave API deve essere ottenuta esclusivamente da process.env.API_KEY
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (!apiKey) {
       return res.status(400).json({ 
         ok: false, 
         modelId, 
-        error: "Missing API_KEY in server environment" 
+        error: "Chiave API mancante (API_KEY o GEMINI_API_KEY)" 
       });
     }
 

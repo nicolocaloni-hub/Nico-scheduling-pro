@@ -1,6 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+export const runtime = 'nodejs';
+
 export default async function handler(req: any, res: any) {
   try {
     if (req.method !== 'POST') {
@@ -8,13 +10,12 @@ export default async function handler(req: any, res: any) {
     }
 
     const { pdfBase64 } = req.body;
-    // Correctly using process.env.API_KEY as per guidelines
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({ 
         message: "Configurazione Server Errata", 
-        error: "Chiave API Gemini non trovata nel runtime server." 
+        error: "Chiave API Gemini non trovata. Verifica le impostazioni delle variabili d'ambiente su Vercel." 
       });
     }
 
@@ -22,7 +23,6 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ message: "Dati PDF mancanti." });
     }
 
-    // Always initialize with { apiKey: process.env.API_KEY }
     const ai = new GoogleGenAI({ apiKey });
     const MODELS_TO_TRY = ['gemini-3-pro-preview', 'gemini-3-flash-preview'];
     
@@ -92,7 +92,6 @@ Return ONLY valid JSON.`;
           }
         });
 
-        // response.text is a getter, not a method
         if (response.text) {
           return res.status(200).json({
             modelUsed: modelId,

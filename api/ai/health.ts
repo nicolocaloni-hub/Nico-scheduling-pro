@@ -1,10 +1,11 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+export const runtime = 'nodejs';
+
 export default async function handler(req: any, res: any) {
   try {
-    // Correctly using process.env.API_KEY as per guidelines
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     
     const diagnostics = {
       hasApiKey: !!apiKey,
@@ -16,12 +17,11 @@ export default async function handler(req: any, res: any) {
     if (!apiKey) {
       return res.status(500).json({ 
         status: "error", 
-        message: "API_KEY non configurata nelle variabili d'ambiente.",
+        message: "API_KEY non configurata. Assicurati che su Vercel la variabile si chiami API_KEY o GEMINI_API_KEY e sia attiva per l'ambiente corrente.",
         diagnostics
       });
     }
 
-    // Always initialize with { apiKey: process.env.API_KEY }
     const ai = new GoogleGenAI({ apiKey });
     const testResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -40,7 +40,7 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({
       status: "error",
       message: error.message || "Impossibile contattare l'API Gemini.",
-      diagnostics: { hasApiKey: !!process.env.API_KEY }
+      diagnostics: { hasApiKey: !!(process.env.API_KEY || process.env.GEMINI_API_KEY) }
     });
   }
 }
