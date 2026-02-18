@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
 import { Scene, ProductionElement, ElementCategory, IntExt, DayNight } from '../types';
@@ -56,8 +56,12 @@ export const ScriptImport: React.FC = () => {
     addLog("[UI] Controllo ambiente server...");
     try {
       const res = await fetch('/api/ai/env');
+      if (!res.ok) {
+        addLog(`[ERROR] Server returned ${res.status}. Route likely not found.`);
+        return;
+      }
       const data = await res.json();
-      addLog(`[SERVER] Env: ${data.vercelEnv}, Key Present: ${data.keyPresent}`);
+      addLog(`[SERVER] Env: ${data.env}, Key Present: ${data.keyPresent}`);
       if (data.details) {
         Object.entries(data.details).forEach(([key, val]) => {
           addLog(`[SERVER] ${key}: ${val ? 'Sì' : 'No'}`);
@@ -98,7 +102,7 @@ export const ScriptImport: React.FC = () => {
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
         addLog(`[ERROR] Risposta non JSON: ${text.substring(0, 200)}...`);
-        throw new Error("Il server non ha restituito JSON. Controlla i log.");
+        throw new Error("Il server non ha restituito JSON. Verifica il deploy di Cloud Run.");
       }
 
       const result = await response.json();
@@ -178,7 +182,7 @@ export const ScriptImport: React.FC = () => {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-black text-white">Importa Sceneggiatura</h1>
-          <p className="text-gray-400">Analisi immediata con Gemini AI</p>
+          <p className="text-gray-400">Pianificazione AI su Google Cloud Run</p>
         </div>
         
         <div className="flex gap-3">
@@ -200,7 +204,7 @@ export const ScriptImport: React.FC = () => {
                 <div className="truncate">
                   <h3 className="text-sm font-bold truncate">{selectedFile?.name || 'Nessun file selezionato'}</h3>
                   <p className="text-[10px] text-gray-500">
-                    {selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB • ${selectedFile.type}` : 'Seleziona un PDF per iniziare'}
+                    {selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : 'Seleziona un copione PDF'}
                   </p>
                 </div>
               </div>
@@ -216,8 +220,8 @@ export const ScriptImport: React.FC = () => {
                 <iframe src={pdfPreviewUrl} className="w-full h-full border-none" title="PDF Preview" />
               ) : (
                 <div className="text-center space-y-4 opacity-20">
-                  <i className="fa-solid fa-file-pdf text-8xl"></i>
-                  <p className="text-lg">Carica il tuo copione PDF</p>
+                  <i className="fa-solid fa-cloud-arrow-up text-8xl"></i>
+                  <p className="text-lg">Trascina il PDF qui</p>
                 </div>
               )}
             </div>
@@ -227,10 +231,10 @@ export const ScriptImport: React.FC = () => {
                 <div className="w-16 h-16 border-4 border-primary-500/20 border-t-primary-500 rounded-full animate-spin"></div>
                 <div>
                   <h2 className="text-xl font-bold text-white mb-2">
-                    {importState === 'uploading' ? 'Caricamento file...' : 'Gemini sta analizzando...'}
+                    {importState === 'uploading' ? 'Caricamento in corso...' : 'Gemini AI al lavoro...'}
                   </h2>
                   <p className="text-gray-400 text-sm max-w-xs mx-auto">
-                    Questa operazione potrebbe richiedere fino a 60 secondi per sceneggiature lunghe.
+                    Analisi del testo e dei personaggi in corso.
                   </p>
                 </div>
               </div>
@@ -253,11 +257,11 @@ export const ScriptImport: React.FC = () => {
                 </div>
                 <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
                   <p className="text-2xl font-black text-white">{summary.castCount}</p>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Personaggi</p>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase">Cast</p>
                 </div>
                 <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
                   <p className="text-2xl font-black text-white">{summary.propsCount}</p>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Props/Props</p>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase">Props</p>
                 </div>
               </div>
             </div>
@@ -267,7 +271,7 @@ export const ScriptImport: React.FC = () => {
             <div className="flex justify-between items-center border-b border-gray-800 pb-3">
               <span className="text-green-500 font-bold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                DEBUG_SYSTEM
+                CLOUD_RUN_CONSOLE
               </span>
               <span className="text-gray-600">STATE: {importState.toUpperCase()}</span>
             </div>
@@ -286,7 +290,7 @@ export const ScriptImport: React.FC = () => {
 
             {error && (
               <div className="mt-4 p-3 bg-red-950/30 border border-red-900/50 rounded-xl text-red-400 text-[11px] leading-tight">
-                <strong className="block text-[9px] uppercase font-black text-red-500 mb-1">Error Details:</strong>
+                <strong className="block text-[9px] uppercase font-black text-red-500 mb-1">Error:</strong>
                 {error}
               </div>
             )}
@@ -296,7 +300,7 @@ export const ScriptImport: React.FC = () => {
                 Clear Logs
               </Button>
               <Button variant="secondary" className="text-[9px] h-7 py-0 flex-1" onClick={checkServerEnv}>
-                Check Server Env
+                Check Cloud Env
               </Button>
             </div>
           </div>
