@@ -1,5 +1,5 @@
 
-import { BreakdownResult } from "../types";
+import { BreakdownResult, Scene } from "../types";
 
 export const parseEighthsToFloat = (eighthsStr: string): number => {
   if (!eighthsStr) return 0;
@@ -13,106 +13,73 @@ export const parseEighthsToFloat = (eighthsStr: string): number => {
   return whole + (eighths / 8);
 };
 
-export interface HealthCheckResponse {
-  ok: boolean;
-  modelId?: string;
-  text?: string;
-  error?: string;
-}
-
 /**
- * Funzione helper per gestire le risposte fetch in modo sicuro.
- * Previene "Unexpected token <" quando il server ritorna HTML di errore.
+ * Utility per gestire le fetch in modo sicuro, evitando crash in caso di risposte non-JSON
  */
-async function handleResponse(response: Response) {
-  const text = await response.text();
+const safeFetch = async (url: string, options?: RequestInit) => {
+  const response = await fetch(url, options);
+  const contentType = response.headers.get("content-type");
   
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch (e) {
-    // Se fallisce il parsing JSON, probabilmente è un errore HTML di Vercel (504/500)
-    console.error("[GeminiService] Non-JSON response received:", text.substring(0, 100));
-    throw new Error(`Server Error (${response.status}): La risposta non è JSON valido. Possibile Timeout o Crash.`);
-  }
-
-  if (!response.ok) {
-    throw new Error(data.error || data.message || `Errore API (${response.status})`);
-  }
-  
-  return data;
-}
-
-export const checkAiHealth = async (): Promise<HealthCheckResponse> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout per health check
-
-    // PUNTA AL NUOVO ENDPOINT SIMPLE-TEST
-    const response = await fetch('/api/ai/simple-test', { 
-        signal: controller.signal 
-    });
-    clearTimeout(timeoutId);
-
-    const data = await handleResponse(response);
-    return data;
-  } catch (e: any) {
-    return {
-      ok: false,
-      error: e.name === 'AbortError' ? 'Timeout: Il server non risponde (10s)' : (e.message || "Network Error")
+  if (contentType && contentType.includes("application/json")) {
+    const data = await response.json();
+    return { ok: response.ok, status: response.status, data };
+  } else {
+    const text = await response.text();
+    return { 
+      ok: false, 
+      status: response.status, 
+      error: `Risposta non JSON: ${text.substring(0, 100)}...` 
     };
   }
+};
+
+export const checkAiEnv = async () => {
+  return await safeFetch('/api/ai/env');
+};
+
+export const runSimpleTest = async () => {
+  return await safeFetch('/api/ai/simple-test');
+};
+
+export const checkAiHealth = async () => {
+  const { ok, data, error } = await safeFetch('/api/ai/health');
+  if (!ok) throw new Error(error || data?.message || "Health check fallito");
+  return data;
+};
+
+export const optimizeSchedule = async (scenes: Scene[]): Promise<string[]> => {
+  const { ok, data, error } = await safeFetch('/api/ai/optimize-schedule', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scenes })
+  });
+  
+  if (!ok) throw new Error(error || data?.message || "Ottimizzazione fallita");
+  return data.orderedSceneIds;
 };
 
 export const analyzeScriptPdf = async (
   pdfBase64: string, 
   onDebugInfo?: (info: any) => void
 ): Promise<BreakdownResult> => {
-  console.log(`[Frontend Service] Invio PDF all'API breakdown: ${pdfBase64.length} bytes`);
+  const { ok, status, data, error } = await safeFetch('/api/ai/breakdown', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pdfBase64 })
+  });
 
-  // Impostiamo un timeout client leggermente inferiore al limite server (es. 55s)
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 55000);
-
-  try {
-    const response = await fetch('/api/ai/breakdown', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pdfBase64 }),
-      signal: controller.signal
+  if (onDebugInfo) {
+    onDebugInfo({
+      status,
+      modelUsed: data?.modelUsed,
+      message: data?.message,
+      error: error || data?.error
     });
-    
-    clearTimeout(timeoutId);
-
-    const result = await handleResponse(response);
-
-    if (onDebugInfo) {
-        onDebugInfo({
-        status: response.status,
-        modelUsed: result.modelUsed,
-        message: result.message || "Success",
-        });
-    }
-
-    if (result.ok === false) {
-        throw new Error(result.error || "Errore sconosciuto nell'analisi");
-    }
-
-    return result.data as BreakdownResult;
-
-  } catch (error: any) {
-    if (onDebugInfo) {
-        onDebugInfo({
-            status: error.name === 'AbortError' ? 408 : 500,
-            modelUsed: 'error',
-            message: error.message,
-            error: error.message
-        });
-    }
-    
-    if (error.name === 'AbortError') {
-        throw new Error("Timeout Richiesta (55s): L'analisi sta impiegando troppo tempo. Il PDF potrebbe essere troppo lungo per il piano attuale.");
-    }
-    throw error;
   }
+
+  if (!ok) {
+    throw new Error(error || data?.error || data?.message || `Errore Server (${status})`);
+  }
+
+  return data.data as BreakdownResult;
 };
