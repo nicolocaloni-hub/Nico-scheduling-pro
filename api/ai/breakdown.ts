@@ -3,6 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PRIMARY_MODEL_ID, FALLBACK_MODEL_ID } from "../../lib/ai/config";
 
 export default async function handler(req: any, res: any) {
+  // Forza JSON header
   res.setHeader('Content-Type', 'application/json');
 
   try {
@@ -27,12 +28,11 @@ export default async function handler(req: any, res: any) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const MODELS_TO_TRY = [PRIMARY_MODEL_ID, FALLBACK_MODEL_ID];
+    // Usiamo il modello richiesto 2.0, poi fallback su 1.5 se necessario
+    const MODELS_TO_TRY = ["gemini-2.0-flash", FALLBACK_MODEL_ID];
     
-    // Prompt e Schema
     const prompt = `Sei un esperto Assistente alla Regia. Analizza il PDF allegato e genera un breakdown professionale in JSON.`;
     
-    // Schema JSON ridotto per brevità, assicurati che corrisponda al frontend
     const responseSchema = {
       type: Type.OBJECT,
       properties: {
@@ -69,7 +69,7 @@ export default async function handler(req: any, res: any) {
 
     let lastError = null;
 
-    // 4. Tentativi con Fallback
+    // 4. Tentativi Sequenziali
     for (const modelId of MODELS_TO_TRY) {
       try {
         console.log(`[Breakdown API] Tentativo con: ${modelId}`);
@@ -90,13 +90,13 @@ export default async function handler(req: any, res: any) {
           }
         });
 
-        if (!response.text) throw new Error("Risposta vuota dal modello.");
+        // Verifica robusta della risposta
+        if (!response.text) throw new Error("Risposta vuota dal modello (text property missing).");
 
-        // Successo
         return res.status(200).json({
           ok: true,
           modelUsed: modelId,
-          fallback: modelId !== PRIMARY_MODEL_ID,
+          fallback: modelId !== "gemini-2.0-flash",
           data: JSON.parse(response.text)
         });
 
@@ -104,14 +104,14 @@ export default async function handler(req: any, res: any) {
         console.error(`[Breakdown API] Errore con ${modelId}:`, error.message);
         lastError = error;
         
-        // Se errore critico su API Key, inutile riprovare
+        // Se errore critico su API Key (400), abortiamo subito
         if (error.message && (error.message.includes('API key') || error.status === 400)) {
            return res.status(400).json({ ok: false, message: "Invalid API Key or Bad Request", error: error.message });
         }
       }
     }
 
-    // 5. Fallimento Totale (sempre JSON)
+    // 5. Fallimento Totale
     return res.status(500).json({
       ok: false,
       message: "Tutti i tentativi di analisi sono falliti.",
@@ -120,7 +120,6 @@ export default async function handler(req: any, res: any) {
     });
 
   } catch (globalError: any) {
-    // Catch-all per errori non previsti (es. errori di sintassi, import, runtime)
     console.error("[Breakdown API Fatal]", globalError);
     return res.status(500).json({
       ok: false,

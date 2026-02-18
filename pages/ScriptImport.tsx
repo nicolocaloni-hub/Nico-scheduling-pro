@@ -161,82 +161,90 @@ export const ScriptImport: React.FC = () => {
 
   const processWithGemini = async (file: File, remoteUrl?: string) => {
     setIsAnalyzing(true);
-    setStatus('Analisi con Gemini in corso...');
-    addLog("Inizio chiamata API /api/ai/breakdown...");
+    setStatus('Lettura PDF in corso...');
+    addLog("Inizio lettura file locale...");
     startTimer();
     
     try {
-        const reader = new FileReader();
-        reader.onload = async () => {
-            const base64 = (reader.result as string).split(',')[1];
-            addLog(`Bytes base64 preparati: ${base64.length}`);
-            
-            try {
-              const result = await analyzeScriptPdf(base64, (info) => {
-                  setDebug(d => ({ 
-                    ...d, 
-                    activeModelId: info.modelUsed || 'error',
-                    httpStatus: info.status
-                  }));
-                  addLog(`Risposta API: Status ${info.status}, Model ${info.modelUsed}`);
-              });
-              
-              const elementsMap: Record<string, ProductionElement> = {};
-              const elements: ProductionElement[] = result.elements.map(el => {
-                  const newEl: ProductionElement = {
-                      id: crypto.randomUUID(),
-                      projectId: projectId!,
-                      name: el.name,
-                      category: el.category as ElementCategory
-                  };
-                  elementsMap[el.name] = newEl;
-                  return newEl;
-              });
-              await db.saveElements(projectId!, elements);
+        // Fix: Avvolgiamo FileReader in una Promise per attendere la lettura
+        const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                    // Rimuovi il prefix "data:application/pdf;base64,"
+                    const base64Data = reader.result.split(',')[1];
+                    resolve(base64Data);
+                } else {
+                    reject(new Error("Lettura file fallita: risultato non stringa"));
+                }
+            };
+            reader.onerror = () => reject(reader.error || new Error("Errore lettura file"));
+            reader.readAsDataURL(file);
+        });
 
-              const scenes: Scene[] = result.scenes.map(s => {
-                  const elementNames = result.sceneElements?.[s.sceneNumber] || [];
-                  const elementIds = elementNames
-                      .map(name => elementsMap[name]?.id)
-                      .filter(id => !!id) as string[];
+        addLog(`Bytes base64 preparati: ${base64.length}`);
+        setStatus('Invio ad AI in corso...');
+        
+        const result = await analyzeScriptPdf(base64, (info) => {
+            setDebug(d => ({ 
+              ...d, 
+              activeModelId: info.modelUsed || 'error',
+              httpStatus: info.status
+            }));
+            addLog(`Risposta API: Status ${info.status}, Model ${info.modelUsed}`);
+        });
+        
+        const elementsMap: Record<string, ProductionElement> = {};
+        const elements: ProductionElement[] = result.elements.map(el => {
+            const newEl: ProductionElement = {
+                id: crypto.randomUUID(),
+                projectId: projectId!,
+                name: el.name,
+                category: el.category as ElementCategory
+            };
+            elementsMap[el.name] = newEl;
+            return newEl;
+        });
+        await db.saveElements(projectId!, elements);
 
-                  return {
-                      id: crypto.randomUUID(),
-                      projectId: projectId!,
-                      sceneNumber: s.sceneNumber,
-                      slugline: s.slugline,
-                      intExt: s.intExt as IntExt,
-                      dayNight: s.dayNight as DayNight,
-                      setName: s.setName,
-                      locationName: s.locationName,
-                      pageCountInEighths: s.pageCountInEighths,
-                      pages: parseEighthsToFloat(s.pageCountInEighths),
-                      synopsis: s.synopsis,
-                      elementIds
-                  };
-              });
+        const scenes: Scene[] = result.scenes.map(s => {
+            const elementNames = result.sceneElements?.[s.sceneNumber] || [];
+            const elementIds = elementNames
+                .map(name => elementsMap[name]?.id)
+                .filter(id => !!id) as string[];
 
-              setAnalysisResult(scenes);
-              addLog("Analisi completata con successo!");
-              
-              await db.saveScenes(projectId!, scenes);
-              await db.createDefaultStripboard(projectId!, scenes);
-              await db.saveScriptVersion({
-                  id: crypto.randomUUID(),
-                  projectId: projectId!,
-                  fileName: file.name,
-                  fileUrl: remoteUrl || '#local', 
-                  version: 1,
-                  createdAt: new Date().toISOString()
-              });
-            } catch (err: any) {
-              setDebug(d => ({ ...d, lastError: err.message, state: 'error' }));
-              addLog(`Errore Analisi: ${err.message}`);
-            }
-        };
-        reader.readAsDataURL(file);
+            return {
+                id: crypto.randomUUID(),
+                projectId: projectId!,
+                sceneNumber: s.sceneNumber,
+                slugline: s.slugline,
+                intExt: s.intExt as IntExt,
+                dayNight: s.dayNight as DayNight,
+                setName: s.setName,
+                locationName: s.locationName,
+                pageCountInEighths: s.pageCountInEighths,
+                pages: parseEighthsToFloat(s.pageCountInEighths),
+                synopsis: s.synopsis,
+                elementIds
+            };
+        });
+
+        setAnalysisResult(scenes);
+        addLog("Analisi completata con successo!");
+        
+        await db.saveScenes(projectId!, scenes);
+        await db.createDefaultStripboard(projectId!, scenes);
+        await db.saveScriptVersion({
+            id: crypto.randomUUID(),
+            projectId: projectId!,
+            fileName: file.name,
+            fileUrl: remoteUrl || '#local', 
+            version: 1,
+            createdAt: new Date().toISOString()
+        });
+
     } catch (error: any) {
-        addLog(`Errore FileReader: ${error.message}`);
+        addLog(`Errore Processo: ${error.message}`);
         setDebug(d => ({ ...d, lastError: error.message, state: 'error' }));
     } finally {
         setIsAnalyzing(false);
