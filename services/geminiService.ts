@@ -20,23 +20,45 @@ export interface HealthCheckResponse {
   error?: string;
 }
 
+/**
+ * Funzione helper per gestire le risposte fetch in modo sicuro.
+ * Previene "Unexpected token <" quando il server ritorna HTML di errore.
+ */
+async function handleResponse(response: Response) {
+  const text = await response.text();
+  
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    // Se fallisce il parsing JSON, probabilmente è un errore HTML di Vercel (504/500)
+    console.error("[GeminiService] Non-JSON response received:", text.substring(0, 100));
+    throw new Error(`Server Error (${response.status}): La risposta non è JSON valido. Possibile Timeout o Crash.`);
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || data.message || `Errore API (${response.status})`);
+  }
+  
+  return data;
+}
+
 export const checkAiHealth = async (): Promise<HealthCheckResponse> => {
   try {
-    const response = await fetch('/api/ai/health');
-    
-    // Controlliamo il content-type per evitare errori di parsing se il server ritorna HTML per errore
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-       const text = await response.text();
-       throw new Error(`Server returned non-JSON response: ${text.substring(0, 50)}...`);
-    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout per health check
 
-    const data = await response.json();
+    const response = await fetch('/api/ai/health', { 
+        signal: controller.signal 
+    });
+    clearTimeout(timeoutId);
+
+    const data = await handleResponse(response);
     return data;
   } catch (e: any) {
     return {
       ok: false,
-      error: e.message || "Network or Parsing Error"
+      error: e.name === 'AbortError' ? 'Timeout: Il server non risponde (10s)' : (e.message || "Network Error")
     };
   }
 };
@@ -47,30 +69,49 @@ export const analyzeScriptPdf = async (
 ): Promise<BreakdownResult> => {
   console.log(`[Frontend Service] Invio PDF all'API breakdown: ${pdfBase64.length} bytes`);
 
-  const response = await fetch('/api/ai/breakdown', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pdfBase64 })
-  });
+  // Impostiamo un timeout client leggermente inferiore al limite server (es. 55s)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 55000);
 
-  const result = await response.json();
-
-  if (onDebugInfo) {
-    onDebugInfo({
-      status: response.status,
-      modelUsed: result.modelUsed,
-      message: result.message || result.error,
-      error: result.error
+  try {
+    const response = await fetch('/api/ai/breakdown', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pdfBase64 }),
+      signal: controller.signal
     });
-  }
+    
+    clearTimeout(timeoutId);
 
-  if (!result.ok && !response.ok) {
-    throw new Error(result.error || result.message || `Errore Server (${response.status})`);
-  }
-  
-  if (result.ok === false) {
-     throw new Error(result.error || "Errore sconosciuto nell'analisi");
-  }
+    const result = await handleResponse(response);
 
-  return result.data as BreakdownResult;
+    if (onDebugInfo) {
+        onDebugInfo({
+        status: response.status,
+        modelUsed: result.modelUsed,
+        message: result.message || "Success",
+        });
+    }
+
+    if (result.ok === false) {
+        throw new Error(result.error || "Errore sconosciuto nell'analisi");
+    }
+
+    return result.data as BreakdownResult;
+
+  } catch (error: any) {
+    if (onDebugInfo) {
+        onDebugInfo({
+            status: error.name === 'AbortError' ? 408 : 500,
+            modelUsed: 'error',
+            message: error.message,
+            error: error.message
+        });
+    }
+    
+    if (error.name === 'AbortError') {
+        throw new Error("Timeout Richiesta (55s): L'analisi sta impiegando troppo tempo. Il PDF potrebbe essere troppo lungo per il piano attuale.");
+    }
+    throw error;
+  }
 };
