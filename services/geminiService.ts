@@ -48,7 +48,8 @@ export const checkAiHealth = async (): Promise<HealthCheckResponse> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout per health check
 
-    const response = await fetch('/api/ai/health', { 
+    // PUNTA AL NUOVO ENDPOINT SIMPLE-TEST
+    const response = await fetch('/api/ai/simple-test', { 
         signal: controller.signal 
     });
     clearTimeout(timeoutId);

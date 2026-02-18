@@ -1,8 +1,9 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
+import { getGeminiClient } from "../../lib/ai/client";
 import { FALLBACK_MODEL_ID } from "../../lib/ai/config";
 
-// Configurazione Vercel: Estendi timeout
+// Configurazione Vercel
 export const config = {
   maxDuration: 60, 
 };
@@ -12,25 +13,22 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
 
   try {
+    // 1. Validazione Request
     if (req.method !== 'POST') {
-      return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-    if (!apiKey) {
-      return res.status(400).json({ ok: false, reason: "Missing GEMINI_API_KEY" });
+      return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
     }
 
     const { pdfBase64 } = req.body;
     if (!pdfBase64) {
-      return res.status(400).json({ ok: false, message: "Missing pdfBase64" });
+      return res.status(400).json({ ok: false, error: "Missing pdfBase64 body parameter" });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    // Sequenza modelli: Prova il 2.0 Flash, poi fallback
+    // 2. Inizializzazione Client (Logica condivisa)
+    // Se manca la key, getGeminiClient lancia un errore che viene catturato dal catch globale
+    const ai = getGeminiClient();
+
+    // 3. Configurazione Modelli e Prompt
     const MODELS_TO_TRY = ["gemini-2.0-flash", FALLBACK_MODEL_ID];
-    
-    // Prompt ottimizzato per velocità
     const prompt = `Analizza lo script PDF. Estrai Scene ed Elementi. Rispondi SOLO in JSON.`;
     
     const responseSchema = {
@@ -69,6 +67,7 @@ export default async function handler(req: any, res: any) {
 
     let lastError = null;
 
+    // 4. Loop Tentativi Modelli
     for (const modelId of MODELS_TO_TRY) {
       try {
         console.log(`[Breakdown API] Trying model: ${modelId}`);
@@ -89,12 +88,18 @@ export default async function handler(req: any, res: any) {
           }
         });
 
-        if (!response.text) throw new Error("Empty response text");
+        if (!response.text) throw new Error("Empty response text from AI");
 
-        // Validazione JSON server-side
-        const parsedData = JSON.parse(response.text);
+        // Validazione JSON server-side per assicurarsi che il modello abbia risposto correttamente
+        let parsedData;
+        try {
+            parsedData = JSON.parse(response.text);
+        } catch (jsonError) {
+            throw new Error("Model returned invalid JSON");
+        }
 
         console.log(`[Breakdown API] Success with ${modelId}`);
+        
         return res.status(200).json({
           ok: true,
           modelUsed: modelId,
@@ -106,22 +111,26 @@ export default async function handler(req: any, res: any) {
         console.error(`[Breakdown API] Error with ${modelId}:`, error.message);
         lastError = error;
         
-        // Non riprovare se è un errore di autenticazione o bad request
-        if (error.status === 400 || (error.message && error.message.includes('API key'))) {
-           return res.status(400).json({ ok: false, message: "Invalid API Key or Bad Request", error: error.message });
+        // Se è un errore 400 (Bad Request) o Auth, è inutile riprovare con altri modelli
+        if (error.toString().includes('API key') || error.status === 400) {
+           throw error; // Esci dal loop e vai al catch globale
         }
       }
     }
 
     // Se arriviamo qui, tutti i modelli hanno fallito
-    throw new Error(lastError?.message || "All models failed");
+    throw new Error(lastError?.message || "All models failed to analyze the script");
 
   } catch (globalError: any) {
     console.error("[Breakdown API Fatal]", globalError);
-    return res.status(500).json({
+    
+    // 5. Risposta Errore Globale (Sempre JSON)
+    const statusCode = globalError.message?.includes("API key") ? 400 : 500;
+    
+    return res.status(statusCode).json({
       ok: false,
-      message: "Internal Server Error",
-      error: globalError.message || "Unknown error"
+      error: globalError.message || "Internal Server Error",
+      details: "Check server logs for more info"
     });
   }
 }
