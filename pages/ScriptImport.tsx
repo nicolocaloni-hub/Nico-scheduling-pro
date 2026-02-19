@@ -202,7 +202,9 @@ export const ScriptImport: React.FC = () => {
             <Button onClick={startAnalysis} type="button">Inizia Analisi</Button>
           )}
           {importState === 'done' && (
-            <Button onClick={() => navigate('/stripboard')}>Vai al Piano Lav.</Button>
+            <Button onClick={() => navigate('/stripboard')}>
+              <span className="text-xs">Vai al</span> <span className="font-black tracking-wider text-sm ml-1">PDL</span>
+            </Button>
           )}
         </div>
       </div>

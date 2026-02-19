@@ -104,6 +104,11 @@ export const db = {
     saveState(state);
   },
 
+  getElements: async (projectId: string): Promise<ProductionElement[]> => {
+    const state = loadState();
+    return state.elements[projectId] || [];
+  },
+
   saveScriptVersion: async (version: ScriptVersion): Promise<void> => {
     const state = loadState();
     if (!state.scripts[version.projectId]) state.scripts[version.projectId] = [];
