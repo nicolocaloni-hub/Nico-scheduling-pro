@@ -10,6 +10,7 @@ interface DBState {
   stripboards: Record<string, Stripboard[]>; 
   scripts: Record<string, ScriptVersion[]>; 
   calendarEvents: Record<string, CalendarEvent[]>;
+  analysisResults: Record<string, any>; // projectId -> result object
 }
 
 const loadState = (): DBState => {
@@ -19,7 +20,7 @@ const loadState = (): DBState => {
   } catch (e) {
     console.error("Failed to load state", e);
   }
-  return { projects: [], scenes: {}, elements: {}, stripboards: {}, scripts: {}, calendarEvents: {} };
+  return { projects: [], scenes: {}, elements: {}, stripboards: {}, scripts: {}, calendarEvents: {}, analysisResults: {} };
 };
 
 const saveState = (state: DBState) => {
@@ -46,6 +47,26 @@ export const db = {
     state.projects.push(newProject);
     saveState(state);
     return newProject;
+  },
+  
+  saveAnalysisResult: async (projectId: string, result: any): Promise<void> => {
+    const state = loadState();
+    if (!state.analysisResults) state.analysisResults = {};
+    state.analysisResults[projectId] = result;
+    saveState(state);
+  },
+
+  getAnalysisResult: async (projectId: string): Promise<any> => {
+    const state = loadState();
+    return state.analysisResults?.[projectId] || null;
+  },
+
+  clearAnalysisResult: async (projectId: string): Promise<void> => {
+    const state = loadState();
+    if (state.analysisResults && state.analysisResults[projectId]) {
+      delete state.analysisResults[projectId];
+      saveState(state);
+    }
   },
 
   getProjectScenes: async (projectId: string): Promise<Scene[]> => {

@@ -31,7 +31,20 @@ export const ScriptImport: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) navigate('/'); else setProjectId(pid);
+    if (!pid) navigate('/'); else {
+      setProjectId(pid);
+      // Check for saved analysis
+      db.getAnalysisResult(pid).then(saved => {
+        if (saved) {
+          setSummary(saved.summary);
+          setPreviewData(saved.data);
+          setModelUsed(saved.modelUsed);
+          setImportState('done');
+          setSelectedFile({ name: saved.fileName || 'Sceneggiatura Salvata' } as File);
+          addLog("Risultati analisi ripristinati dalla memoria locale.");
+        }
+      });
+    }
     
     return () => {
       if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
@@ -46,6 +59,10 @@ export const ScriptImport: React.FC = () => {
       setError("Il file deve essere un PDF.");
       setImportState('error');
       return;
+    }
+
+    if (projectId) {
+      db.clearAnalysisResult(projectId);
     }
 
     if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
@@ -126,6 +143,16 @@ export const ScriptImport: React.FC = () => {
       setPreviewData(result.data);
       
       await saveResultsToDb(result.data);
+      
+      // Save for persistence
+      if (projectId) {
+        await db.saveAnalysisResult(projectId, {
+          summary: result.summary,
+          data: result.data,
+          modelUsed: result.modelUsed,
+          fileName: selectedFile?.name
+        });
+      }
       
       setImportState('done');
       addLog("Dati salvati con successo.");

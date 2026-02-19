@@ -32,7 +32,7 @@ export const Dashboard: React.FC = () => {
 
   const openProject = (id: string) => {
     localStorage.setItem('currentProjectId', id);
-    navigate('/script');
+    navigate('/stripboard');
   };
 
   return (

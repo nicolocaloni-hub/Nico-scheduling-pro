@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
-import { Stripboard, Scene } from '../types';
+import { Stripboard, Scene, Project } from '../types';
 import { Button } from '../components/Button';
 import { PlanAccordionItem } from '../components/PlanAccordionItem';
 
@@ -12,6 +12,7 @@ export const StripboardView: React.FC = () => {
     const [scenes, setScenes] = useState<Record<string, Scene>>({});
     const [loading, setLoading] = useState(true);
     const [openBoardId, setOpenBoardId] = useState<string | null>(null);
+    const [project, setProject] = useState<Project | null>(null);
 
     useEffect(() => {
         loadData();
@@ -22,19 +23,19 @@ export const StripboardView: React.FC = () => {
         if (!pid) return navigate('/');
 
         try {
-            const [fetchedBoards, projectScenes] = await Promise.all([
+            const [fetchedBoards, projectScenes, projects] = await Promise.all([
                 db.getStripboards(pid),
-                db.getProjectScenes(pid)
+                db.getProjectScenes(pid),
+                db.getProjects()
             ]);
             
+            const currentProject = projects.find(p => p.id === pid) || null;
+            setProject(currentProject);
+
             const sceneMap: Record<string, Scene> = {};
             projectScenes.forEach(s => sceneMap[s.id] = s);
             setScenes(sceneMap);
             setBoards(fetchedBoards);
-            
-            // If only one board exists, open it by default? Or keep closed as per request "cliccando... si apre".
-            // Let's keep it closed or open the first one if user prefers. 
-            // User said "cliccando su un item si apre", implies closed by default or list view.
         } catch (error) {
             console.error("Failed to load data", error);
         } finally {
@@ -76,6 +77,11 @@ export const StripboardView: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto py-8 px-4 h-[calc(100vh-80px)] flex flex-col">
             <header className="mb-8">
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                   <span>{project?.name || 'Progetto'}</span>
+                   <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                   <span className="text-white font-bold uppercase tracking-wider">PDL</span>
+                </div>
                 <h1 className="text-3xl font-black text-white mb-2">Piani di Lavorazione</h1>
                 <p className="text-gray-400">Gestisci i tuoi piani e ottimizza le giornate di ripresa.</p>
             </header>
