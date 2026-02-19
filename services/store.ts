@@ -1,5 +1,5 @@
 
-import { Project, Scene, ProductionElement, Stripboard, ProductionType, Strip, ScriptVersion } from "../types";
+import { Project, Scene, ProductionElement, Stripboard, ProductionType, Strip, ScriptVersion, CalendarEvent } from "../types";
 
 const LOCAL_STORAGE_KEY = 'nico_schedule_pro_db_v2';
 
@@ -9,6 +9,7 @@ interface DBState {
   elements: Record<string, ProductionElement[]>; 
   stripboards: Record<string, Stripboard[]>; 
   scripts: Record<string, ScriptVersion[]>; 
+  calendarEvents: Record<string, CalendarEvent[]>;
 }
 
 const loadState = (): DBState => {
@@ -18,7 +19,7 @@ const loadState = (): DBState => {
   } catch (e) {
     console.error("Failed to load state", e);
   }
-  return { projects: [], scenes: {}, elements: {}, stripboards: {}, scripts: {} };
+  return { projects: [], scenes: {}, elements: {}, stripboards: {}, scripts: {}, calendarEvents: {} };
 };
 
 const saveState = (state: DBState) => {
@@ -77,7 +78,7 @@ export const db = {
     if (index >= 0) {
         state.stripboards[board.projectId][index] = board;
     } else {
-        state.stripboards[board.projectId].push(board);
+        state.stripboards[board.projectId][push](board);
     }
     saveState(state);
   },
@@ -108,5 +109,30 @@ export const db = {
     if (!state.scripts[version.projectId]) state.scripts[version.projectId] = [];
     state.scripts[version.projectId].push(version);
     saveState(state);
+  },
+
+  getEvents: async (projectId: string): Promise<CalendarEvent[]> => {
+    const state = loadState();
+    return state.calendarEvents[projectId] || [];
+  },
+
+  saveEvent: async (event: CalendarEvent): Promise<void> => {
+    const state = loadState();
+    if (!state.calendarEvents[event.projectId]) state.calendarEvents[event.projectId] = [];
+    const index = state.calendarEvents[event.projectId].findIndex(e => e.id === event.id);
+    if (index >= 0) {
+      state.calendarEvents[event.projectId][index] = event;
+    } else {
+      state.calendarEvents[event.projectId].push(event);
+    }
+    saveState(state);
+  },
+
+  deleteEvent: async (projectId: string, eventId: string): Promise<void> => {
+    const state = loadState();
+    if (state.calendarEvents[projectId]) {
+      state.calendarEvents[projectId] = state.calendarEvents[projectId].filter(e => e.id !== eventId);
+      saveState(state);
+    }
   }
 };

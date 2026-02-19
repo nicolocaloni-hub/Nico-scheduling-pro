@@ -134,3 +134,14 @@ export interface BreakdownResult {
   }[];
   sceneElements: Record<string, string[]>;
 }
+
+export interface CalendarEvent {
+  id: string;
+  projectId: string;
+  date: string; // ISO YYYY-MM-DD
+  title: string;
+  type: 'shooting' | 'general';
+  scenes?: string[]; // Scene Numbers
+  notes?: string;
+  time?: string;
+}
