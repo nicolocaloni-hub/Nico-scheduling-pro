@@ -197,55 +197,44 @@ export const ScriptImport: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-7 space-y-4">
-          <div className="bg-gray-800 rounded-3xl overflow-hidden border border-gray-700 shadow-2xl relative">
-            <div className="bg-gray-900 p-4 border-b border-gray-700 flex justify-between items-center">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <i className="fa-solid fa-file-pdf text-red-500 text-xl flex-shrink-0"></i>
-                <div className="truncate">
-                  <h3 className="text-sm font-bold truncate">{selectedFile?.name || 'Nessun file selezionato'}</h3>
-                  <p className="text-[10px] text-gray-500">
-                    {selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : 'Seleziona un copione PDF'}
-                  </p>
-                </div>
-              </div>
-              
-              <label className="bg-primary-600 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer hover:bg-primary-500 transition-all flex-shrink-0">
-                SFOGLIA
-                <input type="file" className="hidden" accept="application/pdf" onChange={handleFileChange} disabled={importState === 'analyzing' || importState === 'uploading'} />
-              </label>
+          {/* Picker Compatto */}
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-4 flex items-center justify-between shadow-xl">
+            <div className="flex items-center gap-3 overflow-hidden mr-4">
+              <i className="fa-solid fa-file-pdf text-red-500 text-xl flex-shrink-0"></i>
+              <span className="text-sm font-bold text-white truncate">
+                {selectedFile ? selectedFile.name : 'Nessun file selezionato'}
+              </span>
             </div>
-
-            <div className="h-[60vh] bg-gray-950 flex items-center justify-center">
-              {pdfPreviewUrl ? (
-                <iframe src={pdfPreviewUrl} className="w-full h-full border-none" title="PDF Preview" />
-              ) : (
-                <div className="text-center space-y-4 opacity-20">
-                  <i className="fa-solid fa-cloud-arrow-up text-8xl"></i>
-                  <p className="text-lg">Trascina il PDF qui</p>
-                </div>
-              )}
-            </div>
-
-            {(importState === 'uploading' || importState === 'analyzing') && (
-              <div className="absolute inset-0 bg-gray-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center space-y-6">
-                <div className="w-16 h-16 border-4 border-primary-500/20 border-t-primary-500 rounded-full animate-spin"></div>
-                <div>
-                  <h2 className="text-xl font-bold text-white mb-2">
-                    {importState === 'uploading' ? 'Caricamento in corso...' : 'Gemini AI al lavoro...'}
-                  </h2>
-                  <p className="text-gray-400 text-sm max-w-xs mx-auto">
-                    Analisi del testo e dei personaggi in corso.
-                  </p>
-                </div>
-              </div>
-            )}
+            
+            <label className="bg-primary-600 px-6 py-2 rounded-xl text-xs font-black cursor-pointer hover:bg-primary-500 transition-all flex-shrink-0 active:scale-95 shadow-lg shadow-primary-900/20">
+              SFOGLIA
+              <input 
+                type="file" 
+                className="hidden" 
+                accept="application/pdf" 
+                onChange={handleFileChange} 
+                disabled={importState === 'analyzing' || importState === 'uploading'} 
+              />
+            </label>
           </div>
-        </div>
 
-        <div className="lg:col-span-5 space-y-6">
-          {summary && (
-            <div className="bg-gray-800 border border-primary-500/30 rounded-3xl p-6 shadow-xl">
-              <h2 className="text-sm font-black text-primary-500 uppercase tracking-widest mb-4">Risultati Estratti</h2>
+          {/* Stato Caricamento / Analisi */}
+          {(importState === 'uploading' || importState === 'analyzing') && (
+            <div className="bg-gray-800 border border-primary-500/30 rounded-2xl p-6 flex items-center gap-4 animate-pulse">
+              <div className="w-8 h-8 border-2 border-primary-500/20 border-t-primary-500 rounded-full animate-spin"></div>
+              <div>
+                <p className="text-sm font-bold text-white">
+                  {importState === 'uploading' ? 'Caricamento in corso...' : 'Gemini AI al lavoro...'}
+                </p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Analisi in tempo reale</p>
+              </div>
+            </div>
+          )}
+
+          {/* Success Summary Panel */}
+          {summary && importState === 'done' && (
+            <div className="bg-gray-800 border border-green-500/30 rounded-3xl p-6 shadow-xl">
+              <h2 className="text-sm font-black text-green-500 uppercase tracking-widest mb-4">Risultati Estratti</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
                   <p className="text-2xl font-black text-white">{summary.sceneCount}</p>
@@ -266,7 +255,9 @@ export const ScriptImport: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
 
+        <div className="lg:col-span-5 space-y-6">
           <div className="bg-black border border-gray-800 rounded-3xl p-6 font-mono text-[10px] space-y-4 shadow-xl flex flex-col h-[400px]">
             <div className="flex justify-between items-center border-b border-gray-800 pb-3">
               <span className="text-green-500 font-bold flex items-center gap-2">
