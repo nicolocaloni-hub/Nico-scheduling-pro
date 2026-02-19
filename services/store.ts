@@ -78,7 +78,7 @@ export const db = {
     if (index >= 0) {
         state.stripboards[board.projectId][index] = board;
     } else {
-        state.stripboards[board.projectId][push](board);
+        state.stripboards[board.projectId].push(board);
     }
     saveState(state);
   },
