@@ -5,8 +5,9 @@ import { db } from '../services/store';
 import { Scene, ProductionElement, ElementCategory, IntExt, DayNight } from '../types';
 import { Button } from '../components/Button';
 import { parseEighthsToFloat } from '../services/geminiService';
-
-type ImportState = 'idle' | 'selected' | 'uploading' | 'analyzing' | 'done' | 'error';
+import { AiStatusBar, ImportState } from '../components/AiStatusBar';
+import { DebugDetailsAccordion } from '../components/DebugDetailsAccordion';
+import { ResultsPreview } from '../components/ResultsPreview';
 
 export const ScriptImport: React.FC = () => {
   const navigate = useNavigate();
@@ -17,10 +18,15 @@ export const ScriptImport: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [summary, setSummary] = useState<any>(null);
+  
+  // New state for UI components
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [modelUsed, setModelUsed] = useState<string | undefined>(undefined);
+  const [previewData, setPreviewData] = useState<any>(null);
 
   const addLog = (msg: string) => {
     console.log(msg);
-    setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 30));
+    setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 50));
   };
 
   useEffect(() => {
@@ -49,6 +55,8 @@ export const ScriptImport: React.FC = () => {
     setImportState('selected');
     setError(null);
     setSummary(null);
+    setPreviewData(null);
+    setModelUsed(undefined);
     addLog(`File selezionato: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
   };
 
@@ -78,6 +86,7 @@ export const ScriptImport: React.FC = () => {
     addLog("[UI] startAnalysis triggered");
     setImportState('uploading');
     setError(null);
+    setIsDetailsOpen(false);
 
     try {
       addLog("Conversione file in corso...");
@@ -88,7 +97,7 @@ export const ScriptImport: React.FC = () => {
         reader.onerror = reject;
         reader.readAsDataURL(selectedFile);
       });
-
+      
       addLog("Invio al server in corso...");
       setImportState('analyzing');
       
@@ -112,7 +121,9 @@ export const ScriptImport: React.FC = () => {
       }
 
       addLog(`Analisi completata! Modello: ${result.modelUsed}`);
+      setModelUsed(result.modelUsed);
       setSummary(result.summary);
+      setPreviewData(result.data);
       
       await saveResultsToDb(result.data);
       
@@ -123,6 +134,7 @@ export const ScriptImport: React.FC = () => {
       console.error("Analysis failed:", err);
       setError(err.message || "Errore sconosciuto durante l'analisi.");
       setImportState('error');
+      setIsDetailsOpen(true); // Auto-open on error
       addLog(`[CRITICAL] ${err.message}`);
     }
   };
@@ -196,7 +208,7 @@ export const ScriptImport: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-7 space-y-4">
+        <div className="lg:col-span-5 space-y-4">
           {/* Picker Compatto */}
           <div className="bg-gray-800 rounded-2xl border border-gray-700 p-4 flex items-center justify-between shadow-xl">
             <div className="flex items-center gap-3 overflow-hidden mr-4">
@@ -217,84 +229,30 @@ export const ScriptImport: React.FC = () => {
               />
             </label>
           </div>
-
-          {/* Stato Caricamento / Analisi */}
-          {(importState === 'uploading' || importState === 'analyzing') && (
-            <div className="bg-gray-800 border border-primary-500/30 rounded-2xl p-6 flex items-center gap-4 animate-pulse">
-              <div className="w-8 h-8 border-2 border-primary-500/20 border-t-primary-500 rounded-full animate-spin"></div>
-              <div>
-                <p className="text-sm font-bold text-white">
-                  {importState === 'uploading' ? 'Caricamento in corso...' : 'Gemini AI al lavoro...'}
-                </p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Analisi in tempo reale</p>
-              </div>
-            </div>
-          )}
-
-          {/* Success Summary Panel */}
-          {summary && importState === 'done' && (
-            <div className="bg-gray-800 border border-green-500/30 rounded-3xl p-6 shadow-xl">
-              <h2 className="text-sm font-black text-green-500 uppercase tracking-widest mb-4">Risultati Estratti</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
-                  <p className="text-2xl font-black text-white">{summary.sceneCount}</p>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Scene</p>
-                </div>
-                <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
-                  <p className="text-2xl font-black text-white">{summary.locationCount}</p>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Location</p>
-                </div>
-                <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
-                  <p className="text-2xl font-black text-white">{summary.castCount}</p>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Cast</p>
-                </div>
-                <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
-                  <p className="text-2xl font-black text-white">{summary.propsCount}</p>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Props</p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-black border border-gray-800 rounded-3xl p-6 font-mono text-[10px] space-y-4 shadow-xl flex flex-col h-[400px]">
-            <div className="flex justify-between items-center border-b border-gray-800 pb-3">
-              <span className="text-green-500 font-bold flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                CLOUD_RUN_CONSOLE
-              </span>
-              <span className="text-gray-600">STATE: {importState.toUpperCase()}</span>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto space-y-1 no-scrollbar text-gray-400">
-              {logs.length === 0 && <p className="opacity-30 italic">In attesa di eventi...</p>}
-              {logs.map((log, i) => (
-                <div key={i} className={`py-0.5 border-l-2 pl-2 mb-1 ${
-                  log.includes('[ERROR]') || log.includes('[CRITICAL]') ? 'border-red-500 text-red-400 bg-red-500/5' : 
-                  log.includes('[UI]') ? 'border-primary-500 text-primary-400' : 'border-gray-800'
-                }`}>
-                  {log}
-                </div>
-              ))}
-            </div>
+        <div className="lg:col-span-7 space-y-6">
+          {/* AI Status Bar */}
+          <AiStatusBar 
+            status={importState} 
+            fileName={selectedFile?.name || null} 
+            model={modelUsed} 
+          />
 
-            {error && (
-              <div className="mt-4 p-3 bg-red-950/30 border border-red-900/50 rounded-xl text-red-400 text-[11px] leading-tight">
-                <strong className="block text-[9px] uppercase font-black text-red-500 mb-1">Error:</strong>
-                {error}
-              </div>
-            )}
-            
-            <div className="flex gap-2 mt-2">
-              <Button variant="ghost" className="text-[9px] h-7 py-0 opacity-50 hover:opacity-100 flex-1" onClick={() => setLogs([])}>
-                Clear Logs
-              </Button>
-              <Button variant="secondary" className="text-[9px] h-7 py-0 flex-1" onClick={checkServerEnv}>
-                Check Cloud Env
-              </Button>
-            </div>
-          </div>
+          {/* Results Preview */}
+          {summary && importState === 'done' && (
+            <ResultsPreview summary={summary} previewData={previewData} />
+          )}
+
+          {/* Debug Details */}
+          <DebugDetailsAccordion 
+            logs={logs} 
+            isOpen={isDetailsOpen} 
+            onToggle={() => setIsDetailsOpen(!isDetailsOpen)} 
+            error={error}
+            onClearLogs={() => setLogs([])}
+            onCheckEnv={checkServerEnv}
+          />
         </div>
       </div>
     </div>
