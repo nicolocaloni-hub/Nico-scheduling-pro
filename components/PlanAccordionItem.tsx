@@ -4,6 +4,10 @@ import { DayCard } from './DayCard';
 import { Button } from './Button';
 import { optimizeSchedule } from '../services/geminiService';
 import { db } from '../services/store';
+import { SceneEditorModal } from './SceneEditorModal';
+import { PrintSetupModal } from './PrintSetupModal';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface PlanAccordionItemProps {
   board: Stripboard;
@@ -26,6 +30,8 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
 }) => {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [longPressTriggered, setLongPressTriggered] = useState(false);
+  const [editingScene, setEditingScene] = useState<Scene | null>(null);
+  const [showPrintSetup, setShowPrintSetup] = useState(false);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const handleTouchStart = () => {
@@ -51,64 +57,87 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
     }
   };
 
+  const handleSceneSave = async (updatedScene: Scene) => {
+    await db.updateScene(updatedScene);
+    setEditingScene(null);
+    window.location.reload(); 
+  };
+
+  const generatePDF = async () => {
+    const doc = new jsPDF();
+    const setup = await db.getPrintSetup(board.projectId);
+    const title = setup?.projectTitle || projectName || "Piano di Lavorazione";
+    
+    // 1. Cast Page
+    doc.setFontSize(18);
+    doc.text("CAST MEMBERS", 14, 20);
+    doc.setFontSize(12);
+    doc.text(title, 14, 30);
+    
+    const elements = await db.getElements(board.projectId);
+    const cast = elements.filter(e => e.category === 'Cast' || e.category === 'character');
+    // Assign IDs if not present (simple index + 1)
+    const castData = cast.map((c, i) => [i + 1, c.name]);
+    
+    autoTable(doc, {
+      startY: 40,
+      head: [['ID', 'Name']],
+      body: castData,
+    });
+
+    // 2. Schedule Pages
+    doc.addPage();
+    doc.setFontSize(16);
+    doc.text("SHOOTING SCHEDULE", 14, 20);
+    
+    let currentDay = 1;
+    const rows: any[] = [];
+    
+    board.strips.forEach(strip => {
+      if (strip.isDayBreak) {
+        rows.push([{ content: `END OF DAY ${currentDay}`, colSpan: 6, styles: { fillColor: [255, 255, 0], fontStyle: 'bold', halign: 'center' } }]);
+        currentDay++;
+      } else {
+        const s = scenes[strip.sceneId];
+        if (s) {
+           // Find cast IDs
+           const castIds = s.elementIds
+             .map(eid => {
+               const idx = cast.findIndex(c => c.id === eid);
+               return idx >= 0 ? idx + 1 : null;
+             })
+             .filter(id => id !== null)
+             .join(', ');
+
+           rows.push([
+             s.sceneNumber,
+             s.intExt,
+             s.slugline, // Using slugline as set/loc combo
+             s.dayNight,
+             s.pageCountInEighths,
+             castIds
+           ]);
+        }
+      }
+    });
+
+    autoTable(doc, {
+      startY: 30,
+      head: [['Scena', 'I/E', 'Set/Desc', 'D/N', 'Pgs', 'Cast']],
+      body: rows,
+    });
+
+    doc.save(`${title}_PDL.pdf`);
+  };
+
   const displayName = board.name === 'Main Board' && projectName ? projectName : board.name;
 
   const totalPages = board.strips.reduce((acc, strip) => {
     const scene = scenes[strip.sceneId];
-    return acc + (scene ? scene.pages : 0);
+    return acc + (scene?.pages || 0);
   }, 0);
 
-  // Group strips by day
-  // Since we don't have explicit day breaks in the default data yet, 
-  // we'll treat the whole list as Day 1 for now, or respect isDayBreak if present.
-  const days: { dayNumber: number; strips: Strip[] }[] = [];
-  let currentDayStrips: Strip[] = [];
-  let dayCount = 1;
-
-  board.strips.forEach((strip) => {
-    if (strip.isDayBreak) {
-      if (currentDayStrips.length > 0) {
-        days.push({ dayNumber: dayCount, strips: currentDayStrips });
-        currentDayStrips = [];
-        dayCount++;
-      }
-    }
-    currentDayStrips.push(strip);
-  });
-  if (currentDayStrips.length > 0) {
-    days.push({ dayNumber: dayCount, strips: currentDayStrips });
-  }
-
-  const handleAiOptimize = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent toggling accordion
-    if (isOptimizing) return;
-    
-    setIsOptimizing(true);
-    try {
-      const allScenes = Object.values(scenes) as Scene[];
-      // Only optimize scenes that are in this board? 
-      // Or optimize all project scenes? 
-      // The original code optimized "allScenes". 
-      // Let's stick to optimizing scenes present in the board to be safe, 
-      // but usually a stripboard contains all scenes initially.
-      
-      const orderedIds = await optimizeSchedule(allScenes);
-      
-      const newStrips: Strip[] = orderedIds.map((id, index) => ({
-        id: crypto.randomUUID(),
-        sceneId: id,
-        order: index
-      }));
-
-      const updatedBoard = { ...board, strips: newStrips };
-      await db.saveStripboard(updatedBoard);
-      onUpdate(updatedBoard);
-    } catch (error: any) {
-      alert("Errore durante l'ottimizzazione AI: " + error.message);
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
+  const dayCount = board.strips.filter(s => s.isDayBreak).length + 1;
 
   return (
     <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden transition-all duration-300 shadow-lg">
@@ -131,54 +160,79 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
             <p className="text-xs text-gray-400 flex items-center gap-2">
               <span><i className="fa-regular fa-calendar mr-1"></i>{dayCount} Giorni</span>
               <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-              <span>{board.strips.length} Scene</span>
-              <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-              <span>{totalPages.toFixed(1)} Pag</span>
+              <span><i className="fa-solid fa-file-lines mr-1"></i>{totalPages.toFixed(1)} Pag</span>
             </p>
           </div>
         </div>
-        
-        <div className="flex items-center gap-3">
-           {/* Optimize Button (Visible only when open or always? User said "Tap su riga: Espandi". Maybe keep actions inside?) */}
-           {/* Let's keep it simple in the header or move to detail */}
-           <i className={`fa-solid fa-chevron-down text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}></i>
+        <div className="text-gray-500">
+          <i className={`fa-solid fa-chevron-down transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
         </div>
       </div>
 
-      {/* Expanded Detail */}
+      {/* Expanded Content */}
       {isOpen && (
-        <div className="p-4 bg-black/20 animate-in slide-in-from-top-2 duration-200">
-          {/* Actions Toolbar */}
-          <div className="flex justify-end mb-6 gap-2">
-            <Button 
-              variant="primary" 
-              className={`text-xs px-3 py-1.5 h-8 ${isOptimizing ? 'opacity-80' : ''}`}
-              onClick={handleAiOptimize}
-              disabled={isOptimizing}
-            >
-              {isOptimizing ? (
-                <><i className="fa-solid fa-circle-notch animate-spin mr-2"></i>Ottimizzazione AI...</>
-              ) : (
-                <><i className="fa-solid fa-wand-magic-sparkles mr-2"></i>Ordina con AI</>
-              )}
-            </Button>
-          </div>
+        <div className="p-4 bg-gray-900/50">
+           <div className="flex gap-2 mb-4 justify-end">
+             <button onClick={() => setShowPrintSetup(true)} className="text-gray-400 hover:text-white p-2">
+               <i className="fa-solid fa-gear"></i>
+             </button>
+             <button onClick={generatePDF} className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-2 rounded flex items-center gap-2">
+               <i className="fa-solid fa-file-pdf"></i> Scarica PDF
+             </button>
+           </div>
 
-          {/* Days Grid */}
-          <div className="space-y-6">
-            {days.map((day) => (
-              <DayCard 
-                key={day.dayNumber}
-                dayNumber={day.dayNumber}
-                strips={day.strips}
-                scenes={scenes}
-                // onMoveStrip logic would need to be adapted for grouped strips
-                // For now, we omit manual reordering inside the card to keep it simple as requested
-                // or we can implement it later if needed.
-              />
-            ))}
-          </div>
+           <div className="space-y-2">
+             {board.strips.map((strip, idx) => {
+               if (strip.isDayBreak) {
+                 return (
+                   <div key={strip.id} className="bg-gray-800 p-2 rounded text-center text-xs font-bold text-yellow-500 uppercase tracking-widest border border-gray-700 my-4">
+                     FINE GIORNO {strip.dayNumber || '?'}
+                   </div>
+                 );
+               }
+               const scene = scenes[strip.sceneId];
+               if (!scene) return null;
+               
+               return (
+                 <div 
+                   key={strip.id} 
+                   onClick={() => setEditingScene(scene)}
+                   className="bg-gray-800 p-3 rounded border border-gray-700 flex justify-between items-center hover:border-primary-500 cursor-pointer"
+                 >
+                   <div className="flex items-center gap-3">
+                     <span className="font-bold text-white w-8 text-center">{scene.sceneNumber}</span>
+                     <div>
+                       <div className="text-xs font-bold text-gray-300">
+                         {scene.intExt} {scene.setName} - {scene.dayNight}
+                       </div>
+                       <div className="text-[10px] text-gray-500 truncate max-w-[200px]">
+                         {scene.synopsis}
+                       </div>
+                     </div>
+                   </div>
+                   <div className="text-xs font-mono text-gray-400">
+                     {scene.pageCountInEighths}
+                   </div>
+                 </div>
+               );
+             })}
+           </div>
         </div>
+      )}
+
+      {editingScene && (
+        <SceneEditorModal 
+          scene={editingScene} 
+          onClose={() => setEditingScene(null)} 
+          onSave={handleSceneSave} 
+        />
+      )}
+
+      {showPrintSetup && (
+        <PrintSetupModal 
+          projectId={board.projectId}
+          onClose={() => setShowPrintSetup(false)}
+        />
       )}
     </div>
   );

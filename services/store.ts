@@ -195,5 +195,51 @@ export const db = {
       state.calendarEvents[projectId] = state.calendarEvents[projectId].filter(e => e.id !== eventId);
       saveState(state);
     }
+  },
+
+  saveManualPdlDraft: async (projectId: string, draft: any): Promise<void> => {
+    const state = loadState();
+    if (!state.analysisResults) state.analysisResults = {};
+    if (!state.analysisResults[projectId]) state.analysisResults[projectId] = {};
+    state.analysisResults[projectId].manualDraft = draft;
+    saveState(state);
+  },
+
+  loadManualPdlDraft: async (projectId: string): Promise<any> => {
+    const state = loadState();
+    return state.analysisResults?.[projectId]?.manualDraft || null;
+  },
+
+  clearManualPdlDraft: async (projectId: string): Promise<void> => {
+    const state = loadState();
+    if (state.analysisResults?.[projectId]?.manualDraft) {
+      delete state.analysisResults[projectId].manualDraft;
+      saveState(state);
+    }
+  },
+
+  updateScene: async (scene: Scene): Promise<void> => {
+    const state = loadState();
+    const scenes = state.scenes[scene.projectId];
+    if (scenes) {
+      const idx = scenes.findIndex(s => s.id === scene.id);
+      if (idx >= 0) {
+        scenes[idx] = scene;
+        saveState(state);
+      }
+    }
+  },
+
+  savePrintSetup: async (projectId: string, setup: any): Promise<void> => {
+    const state = loadState();
+    if (!state.analysisResults) state.analysisResults = {};
+    if (!state.analysisResults[projectId]) state.analysisResults[projectId] = {};
+    state.analysisResults[projectId].printSetup = setup;
+    saveState(state);
+  },
+
+  getPrintSetup: async (projectId: string): Promise<any> => {
+    const state = loadState();
+    return state.analysisResults?.[projectId]?.printSetup || null;
   }
 };

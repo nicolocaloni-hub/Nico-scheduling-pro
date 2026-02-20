@@ -282,6 +282,33 @@ export const ScriptImport: React.FC = () => {
             onClearLogs={() => setLogs([])}
             onCheckEnv={checkServerEnv}
           />
+
+          {/* Manual Mode Separator */}
+          <div className="pt-8 pb-4">
+            <div className="relative flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-dashed border-gray-600"></div>
+              </div>
+              <div className="relative bg-gray-950 px-4 text-xs text-gray-500 uppercase tracking-widest font-bold">
+                OPPURE
+              </div>
+            </div>
+          </div>
+
+          {/* Manual CTA */}
+          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 text-center space-y-4">
+            <div>
+              <h3 className="text-white font-bold text-lg mb-1">Creazione Manuale</h3>
+              <p className="text-gray-400 text-sm">Non hai un PDF? Compila le scene manualmente.</p>
+            </div>
+            <Button 
+              variant="secondary" 
+              onClick={() => navigate('/stripboard/manual/create')}
+              className="w-full py-3"
+            >
+              <i className="fa-solid fa-pen-to-square mr-2"></i> Crea nuovo Piano di Lavorazione
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -11,6 +11,7 @@ import { ScenesPage } from './pages/ScenesPage';
 import { CharactersPage } from './pages/CharactersPage';
 import { LocationsPage } from './pages/LocationsPage';
 import { PropsPage } from './pages/PropsPage';
+import { ManualStripboardCreate } from './pages/ManualStripboardCreate';
 
 const App: React.FC = () => {
   return (
@@ -19,6 +20,7 @@ const App: React.FC = () => {
         <Route path="/" element={<Layout><Dashboard /></Layout>} />
         <Route path="/script" element={<Layout><ScriptImport /></Layout>} />
         <Route path="/stripboard" element={<Layout><StripboardView /></Layout>} />
+        <Route path="/stripboard/manual/create" element={<Layout><ManualStripboardCreate /></Layout>} />
         <Route path="/calendar" element={<Layout><CalendarPage /></Layout>} />
         <Route path="/scenes" element={<Layout><ScenesPage /></Layout>} />
         <Route path="/characters" element={<Layout><CharactersPage /></Layout>} />
