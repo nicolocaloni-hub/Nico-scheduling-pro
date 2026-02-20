@@ -83,6 +83,27 @@ export const db = {
     }
   },
 
+  deleteProject: async (projectId: string): Promise<void> => {
+    const state = loadState();
+    state.projects = state.projects.filter(p => p.id !== projectId);
+    // Cleanup related data
+    delete state.scenes[projectId];
+    delete state.elements[projectId];
+    delete state.stripboards[projectId];
+    delete state.scripts[projectId];
+    delete state.calendarEvents[projectId];
+    if (state.analysisResults) delete state.analysisResults[projectId];
+    saveState(state);
+  },
+
+  deleteStripboard: async (projectId: string, boardId: string): Promise<void> => {
+    const state = loadState();
+    if (state.stripboards[projectId]) {
+      state.stripboards[projectId] = state.stripboards[projectId].filter(b => b.id !== boardId);
+      saveState(state);
+    }
+  },
+
   getProjectScenes: async (projectId: string): Promise<Scene[]> => {
     const state = loadState();
     return state.scenes[projectId] || [];

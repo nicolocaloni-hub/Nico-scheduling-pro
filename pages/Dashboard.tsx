@@ -30,6 +30,14 @@ export const Dashboard: React.FC = () => {
     loadProjects();
   };
 
+  const handleDeleteProject = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm("Eliminare progetto?\nQuesta azione elimina definitivamente il progetto e i dati associati.")) {
+      await db.deleteProject(id);
+      loadProjects();
+    }
+  };
+
   const openProject = (id: string) => {
     localStorage.setItem('currentProjectId', id);
     navigate('/stripboard');
@@ -67,9 +75,17 @@ export const Dashboard: React.FC = () => {
                         <span className="text-xs bg-gray-900 text-gray-400 py-1 px-2 rounded">{p.type}</span>
                     </div>
                     <h3 className="text-lg font-semibold text-white mb-1">{p.name}</h3>
-                    <div className="flex gap-4 text-xs text-gray-400 mt-4">
-                        <span>{p.totalScenes} Scene</span>
-                        <span>{p.totalPages.toFixed(1)} Pagine</span>
+                    <div className="flex justify-between items-end mt-4">
+                        <div className="flex gap-4 text-xs text-gray-400">
+                            <span>{p.totalScenes} Scene</span>
+                            <span>{p.totalPages.toFixed(1)} Pagine</span>
+                        </div>
+                        <button 
+                            onClick={(e) => handleDeleteProject(e, p.id)}
+                            className="text-gray-500 hover:text-red-500 p-2 -mr-2 transition-colors"
+                        >
+                            <i className="fa-solid fa-trash"></i>
+                        </button>
                     </div>
                 </div>
             ))}

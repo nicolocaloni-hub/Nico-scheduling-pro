@@ -11,6 +11,8 @@ interface PlanAccordionItemProps {
   isOpen: boolean;
   onToggle: () => void;
   onUpdate: (updatedBoard: Stripboard) => void;
+  onDelete: () => void;
+  projectName?: string;
 }
 
 export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({ 
@@ -18,9 +20,38 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
   scenes, 
   isOpen, 
   onToggle,
-  onUpdate
+  onUpdate,
+  onDelete,
+  projectName
 }) => {
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [longPressTriggered, setLongPressTriggered] = useState(false);
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleTouchStart = () => {
+    setLongPressTriggered(false);
+    timerRef.current = setTimeout(() => {
+      setLongPressTriggered(true);
+      if (window.confirm("Elimina definitivamente questo piano?")) {
+        onDelete();
+      }
+    }, 800);
+  };
+
+  const handleTouchEnd = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleClick = () => {
+    if (!longPressTriggered) {
+      onToggle();
+    }
+  };
+
+  const displayName = board.name === 'Main Board' && projectName ? projectName : board.name;
 
   const totalPages = board.strips.reduce((acc, strip) => {
     const scene = scenes[strip.sceneId];
@@ -83,15 +114,20 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
     <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden transition-all duration-300 shadow-lg">
       {/* Header Row */}
       <div 
-        onClick={onToggle}
-        className={`w-full px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-700/50 transition-colors ${isOpen ? 'bg-gray-700/30 border-b border-gray-700' : ''}`}
+        onClick={handleClick}
+        onMouseDown={handleTouchStart}
+        onMouseUp={handleTouchEnd}
+        onMouseLeave={handleTouchEnd}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className={`w-full px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-700/50 transition-colors select-none ${isOpen ? 'bg-gray-700/30 border-b border-gray-700' : ''}`}
       >
         <div className="flex items-center gap-4">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-primary-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
             <i className={`fa-solid ${isOpen ? 'fa-folder-open' : 'fa-folder'}`}></i>
           </div>
           <div>
-            <h3 className="font-bold text-white text-base">{board.name}</h3>
+            <h3 className="font-bold text-white text-base">{displayName}</h3>
             <p className="text-xs text-gray-400 flex items-center gap-2">
               <span><i className="fa-regular fa-calendar mr-1"></i>{dayCount} Giorni</span>
               <span className="w-1 h-1 rounded-full bg-gray-600"></span>

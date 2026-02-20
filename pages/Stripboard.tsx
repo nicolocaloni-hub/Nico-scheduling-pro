@@ -47,6 +47,14 @@ export const StripboardView: React.FC = () => {
         setBoards(prev => prev.map(b => b.id === updatedBoard.id ? updatedBoard : b));
     };
 
+    const handleDeleteBoard = async (boardId: string) => {
+        const pid = localStorage.getItem('currentProjectId');
+        if (pid) {
+            await db.deleteStripboard(pid, boardId);
+            setBoards(prev => prev.filter(b => b.id !== boardId));
+        }
+    };
+
     if (loading) {
         return (
             <div className="max-w-4xl mx-auto p-8 space-y-4">
@@ -95,6 +103,8 @@ export const StripboardView: React.FC = () => {
                         isOpen={openBoardId === board.id}
                         onToggle={() => setOpenBoardId(openBoardId === board.id ? null : board.id)}
                         onUpdate={handleBoardUpdate}
+                        onDelete={() => handleDeleteBoard(board.id)}
+                        projectName={project?.name}
                     />
                 ))}
             </div>

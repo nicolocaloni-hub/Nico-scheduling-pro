@@ -115,32 +115,21 @@ export const CalendarPage: React.FC = () => {
     <div className="max-w-4xl mx-auto py-6 px-4 h-[calc(100vh-80px)] flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-black text-white capitalize">
-            Calendario
-          </h1>
-          <p className="text-gray-400 text-sm">
-            Pianifica le tue riprese
-          </p>
+        <div className="flex items-center gap-4">
+            <button onClick={handlePrevMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors bg-gray-800 border border-gray-700">
+              <i className="fa-solid fa-chevron-left"></i>
+            </button>
+            <h1 className="text-xl font-black text-white capitalize min-w-[140px] text-center">
+              {currentDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
+            </h1>
+            <button onClick={handleNextMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors bg-gray-800 border border-gray-700">
+              <i className="fa-solid fa-chevron-right"></i>
+            </button>
         </div>
         
-        <div className="flex gap-2 items-center">
-          <Button variant="secondary" onClick={() => setShowGenerateModal(true)} className="text-xs h-9 px-3 mr-2">
+        <Button variant="secondary" onClick={() => setShowGenerateModal(true)} className="text-xs h-9 px-3">
             <i className="fa-solid fa-wand-magic-sparkles mr-2"></i> Auto-Genera
-          </Button>
-          
-          <div className="flex items-center bg-gray-800 rounded-lg border border-gray-700 p-1">
-            <button onClick={handlePrevMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors">
-              <i className="fa-solid fa-chevron-left text-lg"></i>
-            </button>
-            <div className="px-4 font-bold text-white text-sm uppercase tracking-wide min-w-[120px] text-center">
-              {currentDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
-            </div>
-            <button onClick={handleNextMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors">
-              <i className="fa-solid fa-chevron-right text-lg"></i>
-            </button>
-          </div>
-        </div>
+        </Button>
       </div>
 
       {/* Calendar Grid */}
