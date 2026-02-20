@@ -56,6 +56,20 @@ export const db = {
     saveState(state);
   },
 
+  saveSuggestions: async (projectId: string, suggestions: any): Promise<void> => {
+    const state = loadState();
+    if (!state.analysisResults) state.analysisResults = {};
+    if (!state.analysisResults[projectId]) state.analysisResults[projectId] = {};
+    
+    state.analysisResults[projectId].suggestions = suggestions;
+    saveState(state);
+  },
+
+  getSuggestions: async (projectId: string): Promise<any> => {
+    const state = loadState();
+    return state.analysisResults?.[projectId]?.suggestions || null;
+  },
+
   getAnalysisResult: async (projectId: string): Promise<any> => {
     const state = loadState();
     return state.analysisResults?.[projectId] || null;
