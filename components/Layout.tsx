@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { SettingsModal } from './SettingsModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showSettings, setShowSettings] = useState(false);
 
   const navItems = [
     { label: 'Progetti', path: '/', icon: (
@@ -47,10 +49,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
              </button>
            ))}
         </div>
+        <div className="pb-6 flex flex-col items-center">
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="p-3 text-gray-400 hover:text-white transition-colors"
+          >
+            <i className="fa-solid fa-gear text-xl"></i>
+          </button>
+        </div>
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 relative">
+        {/* Mobile Settings Icon (Top Right) */}
+        <div className="md:hidden absolute top-4 right-4 z-40">
+           <button 
+            onClick={() => setShowSettings(true)}
+            className="p-2 text-gray-400 hover:text-white bg-gray-800/50 rounded-full backdrop-blur-sm"
+          >
+            <i className="fa-solid fa-gear"></i>
+          </button>
+        </div>
         {children}
       </main>
 
@@ -69,6 +88,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
            ))}
         </div>
       </nav>
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 };

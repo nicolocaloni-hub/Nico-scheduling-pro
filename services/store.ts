@@ -241,5 +241,27 @@ export const db = {
   getPrintSetup: async (projectId: string): Promise<any> => {
     const state = loadState();
     return state.analysisResults?.[projectId]?.printSetup || null;
+  },
+
+  // Generic method to delete UI banners if we were tracking them by ID
+  // Since banners are hardcoded in components (like "Creazione Manuale"), we can't delete them from store easily unless we flag them as hidden.
+  // Let's add a 'hiddenBanners' set to store.
+  hideBanner: async (bannerId: string): Promise<void> => {
+    const state = loadState();
+    if (!state.analysisResults) state.analysisResults = {};
+    if (!state.analysisResults['global']) state.analysisResults['global'] = {};
+    
+    const hidden = state.analysisResults['global'].hiddenBanners || [];
+    if (!hidden.includes(bannerId)) {
+      hidden.push(bannerId);
+      state.analysisResults['global'].hiddenBanners = hidden;
+      saveState(state);
+    }
+  },
+
+  isBannerHidden: (bannerId: string): boolean => {
+    const state = loadState();
+    const hidden = state.analysisResults?.['global']?.hiddenBanners || [];
+    return hidden.includes(bannerId);
   }
 };

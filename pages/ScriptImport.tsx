@@ -31,8 +31,30 @@ export const ScriptImport: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) navigate('/'); else {
+    if (!pid) {
+      // Clean state if no project selected
+      setProjectId(null);
+      setSummary(null);
+      setPreviewData(null);
+      setModelUsed(undefined);
+      setImportState('idle');
+      setSelectedFile(null);
+      setPdfPreviewUrl(null);
+      return;
+    } 
+    
+    // Only load if projectId changed
+    if (pid !== projectId) {
       setProjectId(pid);
+      // Reset state first
+      setSummary(null);
+      setPreviewData(null);
+      setModelUsed(undefined);
+      setImportState('idle');
+      setSelectedFile(null);
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(null);
+
       // Check for saved analysis
       db.getAnalysisResult(pid).then(saved => {
         if (saved) {
@@ -47,9 +69,61 @@ export const ScriptImport: React.FC = () => {
     }
     
     return () => {
-      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      // Cleanup preview url only on unmount or change
     };
-  }, [navigate, pdfPreviewUrl]);
+  }, [navigate, projectId]); // Added projectId dependency to detect changes
+
+  const handleReset = async () => {
+    if (!projectId) return;
+    if (window.confirm("Resettare il copione per questo progetto? I dati non salvati andranno persi.")) {
+      await db.clearAnalysisResult(projectId);
+      setSummary(null);
+      setPreviewData(null);
+      setModelUsed(undefined);
+      setImportState('idle');
+      setSelectedFile(null);
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(null);
+      addLog("Stato copione resettato.");
+    }
+  };
+
+  // Banner Long Press Logic
+  const [manualBannerHidden, setManualBannerHidden] = useState(false);
+  const bannerTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [bannerLongPressTriggered, setBannerLongPressTriggered] = useState(false);
+
+  useEffect(() => {
+    if (db.isBannerHidden('manual-creation-banner')) {
+      setManualBannerHidden(true);
+    }
+  }, []);
+
+  const handleBannerTouchStart = () => {
+    setBannerLongPressTriggered(false);
+    bannerTimerRef.current = setTimeout(() => {
+      setBannerLongPressTriggered(true);
+      if (window.confirm("Elimina definitivamente questo banner?")) {
+        db.hideBanner('manual-creation-banner');
+        setManualBannerHidden(true);
+      }
+    }, 800);
+  };
+
+  const handleBannerTouchEnd = () => {
+    if (bannerTimerRef.current) {
+      clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = null;
+    }
+  };
+
+  const handleBannerClick = () => {
+    if (!bannerLongPressTriggered) {
+      // Normal click logic if needed, but the button inside handles navigation.
+      // Since the click listener is on the container, we need to ensure it doesn't block the button.
+      // Actually, the button has its own onClick. We should apply long press to the container.
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -229,9 +303,17 @@ export const ScriptImport: React.FC = () => {
             <Button onClick={startAnalysis} type="button">Inizia Analisi</Button>
           )}
           {importState === 'done' && (
-            <Button onClick={() => navigate('/stripboard')}>
-              <span className="text-xs">Vai al</span> <span className="font-black tracking-wider text-sm ml-1">PDL</span>
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <button 
+                onClick={handleReset}
+                className="text-[10px] text-gray-500 hover:text-red-400 uppercase font-bold tracking-wider"
+              >
+                Reset
+              </button>
+              <Button onClick={() => navigate('/stripboard')}>
+                <span className="text-xs">Vai al</span> <span className="font-black tracking-wider text-sm ml-1">PDL</span>
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -296,19 +378,35 @@ export const ScriptImport: React.FC = () => {
           </div>
 
           {/* Manual CTA */}
-          <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 text-center space-y-4">
-            <div>
-              <h3 className="text-white font-bold text-lg mb-1">Creazione Manuale</h3>
-              <p className="text-gray-400 text-sm">Non hai un PDF? Compila le scene manualmente.</p>
-            </div>
-            <Button 
-              variant="secondary" 
-              onClick={() => navigate('/stripboard/manual/create')}
-              className="w-full py-3"
+          {!manualBannerHidden && (
+            <div 
+              className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 text-center space-y-4 select-none"
+              onMouseDown={handleBannerTouchStart}
+              onMouseUp={handleBannerTouchEnd}
+              onMouseLeave={handleBannerTouchEnd}
+              onTouchStart={handleBannerTouchStart}
+              onTouchEnd={handleBannerTouchEnd}
             >
-              <i className="fa-solid fa-pen-to-square mr-2"></i> Crea nuovo Piano di Lavorazione
-            </Button>
-          </div>
+              <div>
+                <h3 className="text-white font-bold text-lg mb-1">Creazione Manuale</h3>
+                <p className="text-gray-400 text-sm">Non hai un PDF? Compila le scene manualmente.</p>
+              </div>
+              <Button 
+                variant="secondary" 
+                onClick={(e) => {
+                  if (bannerLongPressTriggered) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                  }
+                  navigate('/stripboard/manual/create');
+                }}
+                className="w-full py-3"
+              >
+                <i className="fa-solid fa-pen-to-square mr-2"></i> Crea nuovo Piano di Lavorazione
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
