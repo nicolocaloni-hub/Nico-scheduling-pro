@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { db } from '../services/store';
+import { useTranslation } from '../services/i18n';
 
 interface PrintSetupModalProps {
   projectId: string;
@@ -11,6 +12,7 @@ export const PrintSetupModal: React.FC<PrintSetupModalProps> = ({ projectId, onC
   const [showTime, setShowTime] = useState(false);
   const [projectTitle, setProjectTitle] = useState('');
   const [dayLabels, setDayLabels] = useState<string[]>([]);
+  const { t } = useTranslation();
 
   useEffect(() => {
     db.getPrintSetup(projectId).then(setup => {
@@ -28,18 +30,21 @@ export const PrintSetupModal: React.FC<PrintSetupModalProps> = ({ projectId, onC
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <h3 className="text-lg font-bold text-white mb-4">Impostazioni Stampa</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div 
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl transition-colors duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('print_settings_title')}</h3>
         
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Titolo Progetto (Header)</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">{t('project_title_header')}</label>
             <input 
               value={projectTitle}
               onChange={e => setProjectTitle(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-sm"
-              placeholder="Titolo del film"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white text-sm"
+              placeholder={t('project_title_placeholder')}
             />
           </div>
 
@@ -48,21 +53,21 @@ export const PrintSetupModal: React.FC<PrintSetupModalProps> = ({ projectId, onC
               type="checkbox" 
               checked={showTime} 
               onChange={e => setShowTime(e.target.checked)}
-              className="w-5 h-5 rounded bg-gray-800 border-gray-700"
+              className="w-5 h-5 rounded bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700"
             />
-            <label className="text-sm text-white">Mostra orario approssimativo</label>
+            <label className="text-sm text-gray-900 dark:text-white">{t('show_approx_time')}</label>
           </div>
 
           <div>
-             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Etichette Giorni (opzionale)</label>
-             <p className="text-xs text-gray-500 mb-2">Lascia vuoto per usare default "Day 1", "Day 2"...</p>
+             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">{t('day_labels_optional')}</label>
+             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('day_labels_desc')}</p>
              {/* Simplified for now: just a note that it's editable in full version */}
           </div>
         </div>
 
         <div className="flex gap-3 mt-6">
-          <Button variant="secondary" onClick={onClose} className="flex-1">Annulla</Button>
-          <Button onClick={handleSave} className="flex-1">Salva</Button>
+          <Button variant="secondary" onClick={onClose} className="flex-1">{t('cancel')}</Button>
+          <Button onClick={handleSave} className="flex-1">{t('save')}</Button>
         </div>
       </div>
     </div>

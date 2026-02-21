@@ -8,6 +8,7 @@ import { SceneEditorModal } from './SceneEditorModal';
 import { PrintSetupModal } from './PrintSetupModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useTranslation } from '../services/i18n';
 
 interface PlanAccordionItemProps {
   board: Stripboard;
@@ -33,15 +34,16 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
   const [editingScene, setEditingScene] = useState<Scene | null>(null);
   const [showPrintSetup, setShowPrintSetup] = useState(false);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const { t } = useTranslation();
 
   const handleTouchStart = () => {
     setLongPressTriggered(false);
     timerRef.current = setTimeout(() => {
       setLongPressTriggered(true);
-      if (window.confirm("Elimina definitivamente questo piano?")) {
+      if (window.confirm(t('delete_plan_confirm'))) {
         onDelete();
       }
-    }, 800);
+    }, 1500); // 1.5s threshold
   };
 
   const handleTouchEnd = () => {
@@ -140,7 +142,7 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
   const dayCount = board.strips.filter(s => s.isDayBreak).length + 1;
 
   return (
-    <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden transition-all duration-300 shadow-lg">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 shadow-lg">
       {/* Header Row */}
       <div 
         onClick={handleClick}
@@ -149,35 +151,35 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
         onMouseLeave={handleTouchEnd}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        className={`w-full px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-700/50 transition-colors select-none ${isOpen ? 'bg-gray-700/30 border-b border-gray-700' : ''}`}
+        className={`w-full px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors select-none ${isOpen ? 'bg-gray-50 dark:bg-gray-700/30 border-b border-gray-200 dark:border-gray-700' : ''}`}
       >
         <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-primary-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
             <i className={`fa-solid ${isOpen ? 'fa-folder-open' : 'fa-folder'}`}></i>
           </div>
           <div>
-            <h3 className="font-bold text-white text-base">{displayName}</h3>
-            <p className="text-xs text-gray-400 flex items-center gap-2">
-              <span><i className="fa-regular fa-calendar mr-1"></i>{dayCount} Giorni</span>
-              <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-              <span><i className="fa-solid fa-file-lines mr-1"></i>{totalPages.toFixed(1)} Pag</span>
+            <h3 className="font-bold text-gray-900 dark:text-white text-base">{displayName}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+              <span><i className="fa-regular fa-calendar mr-1"></i>{dayCount} {t('days')}</span>
+              <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
+              <span><i className="fa-solid fa-file-lines mr-1"></i>{totalPages.toFixed(1)} {t('pages')}</span>
             </p>
           </div>
         </div>
-        <div className="text-gray-500">
+        <div className="text-gray-400 dark:text-gray-500">
           <i className={`fa-solid fa-chevron-down transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
         </div>
       </div>
 
       {/* Expanded Content */}
       {isOpen && (
-        <div className="p-4 bg-gray-900/50">
+        <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
            <div className="flex gap-2 mb-4 justify-end">
-             <button onClick={() => setShowPrintSetup(true)} className="text-gray-400 hover:text-white p-2">
+             <button onClick={() => setShowPrintSetup(true)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-2">
                <i className="fa-solid fa-gear"></i>
              </button>
              <button onClick={generatePDF} className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-2 rounded flex items-center gap-2">
-               <i className="fa-solid fa-file-pdf"></i> Scarica PDF
+               <i className="fa-solid fa-file-pdf"></i> {t('download_pdf')}
              </button>
            </div>
 
@@ -185,8 +187,8 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
              {board.strips.map((strip, idx) => {
                if (strip.isDayBreak) {
                  return (
-                   <div key={strip.id} className="bg-gray-800 p-2 rounded text-center text-xs font-bold text-yellow-500 uppercase tracking-widest border border-gray-700 my-4">
-                     FINE GIORNO {strip.dayNumber || '?'}
+                   <div key={strip.id} className="bg-white dark:bg-gray-800 p-2 rounded text-center text-xs font-bold text-yellow-600 dark:text-yellow-500 uppercase tracking-widest border border-gray-200 dark:border-gray-700 my-4 shadow-sm">
+                     {t('end_of_day')} {strip.dayNumber || '?'}
                    </div>
                  );
                }
@@ -197,12 +199,12 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
                  <div 
                    key={strip.id} 
                    onClick={() => setEditingScene(scene)}
-                   className="bg-gray-800 p-3 rounded border border-gray-700 flex justify-between items-center hover:border-primary-500 cursor-pointer"
+                   className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 flex justify-between items-center hover:border-primary-500 dark:hover:border-primary-500 cursor-pointer shadow-sm"
                  >
                    <div className="flex items-center gap-3">
-                     <span className="font-bold text-white w-8 text-center">{scene.sceneNumber}</span>
+                     <span className="font-bold text-gray-900 dark:text-white w-8 text-center">{scene.sceneNumber}</span>
                      <div>
-                       <div className="text-xs font-bold text-gray-300">
+                       <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
                          {scene.intExt} {scene.setName} - {scene.dayNight}
                        </div>
                        <div className="text-[10px] text-gray-500 truncate max-w-[200px]">

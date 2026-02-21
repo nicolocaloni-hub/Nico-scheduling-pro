@@ -8,6 +8,7 @@ import { parseEighthsToFloat } from '../services/geminiService';
 import { AiStatusBar, ImportState } from '../components/AiStatusBar';
 import { DebugDetailsAccordion } from '../components/DebugDetailsAccordion';
 import { ResultsPreview } from '../components/ResultsPreview';
+import { useTranslation } from '../services/i18n';
 
 export const ScriptImport: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export const ScriptImport: React.FC = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [modelUsed, setModelUsed] = useState<string | undefined>(undefined);
   const [previewData, setPreviewData] = useState<any>(null);
+  const { t } = useTranslation();
 
   const addLog = (msg: string) => {
     console.log(msg);
@@ -88,42 +90,8 @@ export const ScriptImport: React.FC = () => {
     }
   };
 
-  // Banner Long Press Logic
-  const [manualBannerHidden, setManualBannerHidden] = useState(false);
-  const bannerTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [bannerLongPressTriggered, setBannerLongPressTriggered] = useState(false);
-
-  useEffect(() => {
-    if (db.isBannerHidden('manual-creation-banner')) {
-      setManualBannerHidden(true);
-    }
-  }, []);
-
-  const handleBannerTouchStart = () => {
-    setBannerLongPressTriggered(false);
-    bannerTimerRef.current = setTimeout(() => {
-      setBannerLongPressTriggered(true);
-      if (window.confirm("Elimina definitivamente questo banner?")) {
-        db.hideBanner('manual-creation-banner');
-        setManualBannerHidden(true);
-      }
-    }, 800);
-  };
-
-  const handleBannerTouchEnd = () => {
-    if (bannerTimerRef.current) {
-      clearTimeout(bannerTimerRef.current);
-      bannerTimerRef.current = null;
-    }
-  };
-
-  const handleBannerClick = () => {
-    if (!bannerLongPressTriggered) {
-      // Normal click logic if needed, but the button inside handles navigation.
-      // Since the click listener is on the container, we need to ensure it doesn't block the button.
-      // Actually, the button has its own onClick. We should apply long press to the container.
-    }
-  };
+  // Banner Long Press Logic - REMOVED as per request.
+  // The manual creation banner must be fixed and never deletable.
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -294,24 +262,24 @@ export const ScriptImport: React.FC = () => {
     <div className="max-w-6xl mx-auto space-y-8 py-8 px-4">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-black text-white">Importa Sceneggiatura</h1>
-          <p className="text-gray-400">Pianificazione AI su Google Cloud Run</p>
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white">{t('import_title')}</h1>
+          <p className="text-gray-500 dark:text-gray-400">{t('import_subtitle')}</p>
         </div>
         
         <div className="flex gap-3">
           {importState === 'selected' && (
-            <Button onClick={startAnalysis} type="button">Inizia Analisi</Button>
+            <Button onClick={startAnalysis} type="button">{t('start_analysis')}</Button>
           )}
           {importState === 'done' && (
             <div className="flex flex-col items-end gap-1">
               <button 
                 onClick={handleReset}
-                className="text-[10px] text-gray-500 hover:text-red-400 uppercase font-bold tracking-wider"
+                className="text-[10px] text-gray-500 hover:text-red-500 uppercase font-bold tracking-wider"
               >
-                Reset
+                {t('reset')}
               </button>
               <Button onClick={() => navigate('/stripboard')}>
-                <span className="text-xs">Vai al</span> <span className="font-black tracking-wider text-sm ml-1">PDL</span>
+                <span className="text-xs">{t('go_to_pdl')}</span>
               </Button>
             </div>
           )}
@@ -321,16 +289,16 @@ export const ScriptImport: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-5 space-y-4">
           {/* Picker Compatto */}
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-4 flex items-center justify-between shadow-xl">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between shadow-xl">
             <div className="flex items-center gap-3 overflow-hidden mr-4">
               <i className="fa-solid fa-file-pdf text-red-500 text-xl flex-shrink-0"></i>
-              <span className="text-sm font-bold text-white truncate">
-                {selectedFile ? selectedFile.name : 'Nessun file selezionato'}
+              <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                {selectedFile ? selectedFile.name : t('no_file_selected')}
               </span>
             </div>
             
-            <label className="bg-primary-600 px-6 py-2 rounded-xl text-xs font-black cursor-pointer hover:bg-primary-500 transition-all flex-shrink-0 active:scale-95 shadow-lg shadow-primary-900/20">
-              SFOGLIA
+            <label className="bg-primary-600 px-6 py-2 rounded-xl text-xs font-black cursor-pointer hover:bg-primary-500 transition-all flex-shrink-0 active:scale-95 shadow-lg shadow-primary-900/20 text-white">
+              {t('browse')}
               <input 
                 type="file" 
                 className="hidden" 
@@ -369,44 +337,28 @@ export const ScriptImport: React.FC = () => {
           <div className="pt-8 pb-4">
             <div className="relative flex items-center justify-center">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-dashed border-gray-600"></div>
+                <div className="w-full border-t border-dashed border-gray-300 dark:border-gray-600"></div>
               </div>
-              <div className="relative bg-gray-950 px-4 text-xs text-gray-500 uppercase tracking-widest font-bold">
-                OPPURE
+              <div className="relative bg-gray-50 dark:bg-gray-950 px-4 text-xs text-gray-500 uppercase tracking-widest font-bold">
+                {t('or_divider')}
               </div>
             </div>
           </div>
 
           {/* Manual CTA */}
-          {!manualBannerHidden && (
-            <div 
-              className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 text-center space-y-4 select-none"
-              onMouseDown={handleBannerTouchStart}
-              onMouseUp={handleBannerTouchEnd}
-              onMouseLeave={handleBannerTouchEnd}
-              onTouchStart={handleBannerTouchStart}
-              onTouchEnd={handleBannerTouchEnd}
-            >
-              <div>
-                <h3 className="text-white font-bold text-lg mb-1">Creazione Manuale</h3>
-                <p className="text-gray-400 text-sm">Non hai un PDF? Compila le scene manualmente.</p>
-              </div>
-              <Button 
-                variant="secondary" 
-                onClick={(e) => {
-                  if (bannerLongPressTriggered) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return;
-                  }
-                  navigate('/stripboard/manual/create');
-                }}
-                className="w-full py-3"
-              >
-                <i className="fa-solid fa-pen-to-square mr-2"></i> Crea nuovo Piano di Lavorazione
-              </Button>
+          <div className="bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-xl p-6 text-center space-y-4">
+            <div>
+              <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-1">{t('manual_creation_title')}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">{t('manual_creation_desc')}</p>
             </div>
-          )}
+            <Button 
+              variant="secondary" 
+              onClick={() => navigate('/stripboard/manual/create')}
+              className="w-full py-3"
+            >
+              <i className="fa-solid fa-pen-to-square mr-2"></i> {t('create_new_pdl')}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
