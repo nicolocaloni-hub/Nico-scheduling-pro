@@ -5,6 +5,7 @@ import { db } from '../services/store';
 import { Stripboard, Scene, Project } from '../types';
 import { Button } from '../components/Button';
 import { PlanAccordionItem } from '../components/PlanAccordionItem';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const StripboardView: React.FC = () => {
     const navigate = useNavigate();
@@ -13,6 +14,7 @@ export const StripboardView: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [openBoardId, setOpenBoardId] = useState<string | null>(null);
     const [project, setProject] = useState<Project | null>(null);
+    const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
 
     useEffect(() => {
         loadData();
@@ -47,11 +49,17 @@ export const StripboardView: React.FC = () => {
         setBoards(prev => prev.map(b => b.id === updatedBoard.id ? updatedBoard : b));
     };
 
-    const handleDeleteBoard = async (boardId: string) => {
+    const handleDeleteRequest = (boardId: string) => {
+        setBoardToDelete(boardId);
+    };
+
+    const confirmDelete = async () => {
         const pid = localStorage.getItem('currentProjectId');
-        if (pid) {
-            await db.deleteStripboard(pid, boardId);
-            setBoards(prev => prev.filter(b => b.id !== boardId));
+        if (pid && boardToDelete) {
+            console.log(`delete confirmed for board ${boardToDelete}`);
+            await db.deleteStripboard(pid, boardToDelete);
+            setBoards(prev => prev.filter(b => b.id !== boardToDelete));
+            setBoardToDelete(null);
         }
     };
 
@@ -72,8 +80,8 @@ export const StripboardView: React.FC = () => {
                     <i className="fa-solid fa-clipboard-list text-3xl text-gray-600"></i>
                 </div>
                 <div>
-                    <h2 className="text-xl font-bold text-white mb-2">Nessun Piano di Lavorazione</h2>
-                    <p className="text-gray-400">Importa una sceneggiatura per generare il primo piano.</p>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Nessun Piano di Lavorazione</h2>
+                    <p className="text-gray-500 dark:text-gray-400">Importa una sceneggiatura per generare il primo piano.</p>
                 </div>
                 <Button onClick={() => navigate('/script')} className="mx-auto">
                     Importa Sceneggiatura
@@ -88,10 +96,10 @@ export const StripboardView: React.FC = () => {
                 <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                    <span>{project?.name || 'Progetto'}</span>
                    <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                   <span className="text-white font-bold uppercase tracking-wider">PDL</span>
+                   <span className="text-gray-900 dark:text-white font-bold uppercase tracking-wider">PDL</span>
                 </div>
-                <h1 className="text-3xl font-black text-white mb-2">Piani di Lavorazione</h1>
-                <p className="text-gray-400">Gestisci i tuoi piani e ottimizza le giornate di ripresa.</p>
+                <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Piani di Lavorazione</h1>
+                <p className="text-gray-500 dark:text-gray-400">Gestisci i tuoi piani e ottimizza le giornate di ripresa.</p>
             </header>
 
             <div className="flex-1 overflow-y-auto space-y-4 pb-20 no-scrollbar">
@@ -103,11 +111,19 @@ export const StripboardView: React.FC = () => {
                         isOpen={openBoardId === board.id}
                         onToggle={() => setOpenBoardId(openBoardId === board.id ? null : board.id)}
                         onUpdate={handleBoardUpdate}
-                        onDelete={() => handleDeleteBoard(board.id)}
+                        onDelete={() => handleDeleteRequest(board.id)}
                         projectName={project?.name}
                     />
                 ))}
             </div>
+
+            <ConfirmationModal
+                isOpen={!!boardToDelete}
+                title="Attenzione"
+                message="Stai per cancellare definitivamente questo piano di lavorazione. Vuoi continuare?"
+                onConfirm={confirmDelete}
+                onCancel={() => setBoardToDelete(null)}
+            />
         </div>
     );
 };

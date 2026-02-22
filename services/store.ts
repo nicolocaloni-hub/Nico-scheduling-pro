@@ -13,14 +13,28 @@ interface DBState {
   analysisResults: Record<string, any>; // projectId -> result object
 }
 
+const defaultState: DBState = { 
+  projects: [], 
+  scenes: {}, 
+  elements: {}, 
+  stripboards: {}, 
+  scripts: {}, 
+  calendarEvents: {}, 
+  analysisResults: {} 
+};
+
 const loadState = (): DBState => {
   try {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Merge with default state to ensure all keys exist
+      return { ...defaultState, ...parsed };
+    }
   } catch (e) {
     console.error("Failed to load state", e);
   }
-  return { projects: [], scenes: {}, elements: {}, stripboards: {}, scripts: {}, calendarEvents: {}, analysisResults: {} };
+  return defaultState;
 };
 
 const saveState = (state: DBState) => {

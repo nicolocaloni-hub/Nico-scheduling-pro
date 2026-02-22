@@ -88,11 +88,11 @@ export const CalendarPage: React.FC = () => {
               onClick={() => handleDayClick(day)}
               className={`aspect-square rounded-xl border flex flex-col items-center justify-start pt-2 cursor-pointer relative transition-all active:scale-95 ${
                 isToday 
-                  ? 'bg-primary-900/30 border-primary-500 text-white' 
-                  : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                  ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-500 text-primary-900 dark:text-white' 
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
-              <span className={`text-sm font-bold ${isToday ? 'text-primary-400' : ''}`}>{day}</span>
+              <span className={`text-sm font-bold ${isToday ? 'text-primary-600 dark:text-primary-400' : ''}`}>{day}</span>
               
               {/* Event Dots */}
               <div className="flex gap-1 mt-1 flex-wrap justify-center px-1">
@@ -116,13 +116,13 @@ export const CalendarPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
-            <button onClick={handlePrevMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors bg-gray-800 border border-gray-700">
+            <button onClick={handlePrevMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
               <i className="fa-solid fa-chevron-left"></i>
             </button>
-            <h1 className="text-xl font-black text-white capitalize min-w-[140px] text-center">
+            <h1 className="text-xl font-black text-gray-900 dark:text-white capitalize min-w-[140px] text-center">
               {currentDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
             </h1>
-            <button onClick={handleNextMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors bg-gray-800 border border-gray-700">
+            <button onClick={handleNextMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
               <i className="fa-solid fa-chevron-right"></i>
             </button>
         </div>

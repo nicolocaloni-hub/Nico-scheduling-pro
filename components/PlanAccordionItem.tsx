@@ -10,6 +10,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useTranslation } from '../services/i18n';
 
+import { useLongPress } from '../hooks/useLongPress';
+
 interface PlanAccordionItemProps {
   board: Stripboard;
   scenes: Record<string, Scene>;
@@ -29,35 +31,20 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
   onDelete,
   projectName
 }) => {
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [longPressTriggered, setLongPressTriggered] = useState(false);
   const [editingScene, setEditingScene] = useState<Scene | null>(null);
   const [showPrintSetup, setShowPrintSetup] = useState(false);
-  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
   const { t } = useTranslation();
 
-  const handleTouchStart = () => {
-    setLongPressTriggered(false);
-    timerRef.current = setTimeout(() => {
-      setLongPressTriggered(true);
-      if (window.confirm(t('delete_plan_confirm'))) {
-        onDelete();
-      }
-    }, 1500); // 1.5s threshold
+  const handleDelete = () => {
+    console.log(`longPress/delete triggered for plan ${board.id}`);
+    onDelete();
   };
 
-  const handleTouchEnd = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  const handleClick = () => {
-    if (!longPressTriggered) {
-      onToggle();
-    }
-  };
+  const handlers = useLongPress({
+    onLongPress: handleDelete,
+    onClick: onToggle,
+    threshold: 1500
+  });
 
   const handleSceneSave = async (updatedScene: Scene) => {
     await db.updateScene(updatedScene);
@@ -145,12 +132,7 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 shadow-lg">
       {/* Header Row */}
       <div 
-        onClick={handleClick}
-        onMouseDown={handleTouchStart}
-        onMouseUp={handleTouchEnd}
-        onMouseLeave={handleTouchEnd}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        {...handlers}
         className={`w-full px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors select-none ${isOpen ? 'bg-gray-50 dark:bg-gray-700/30 border-b border-gray-200 dark:border-gray-700' : ''}`}
       >
         <div className="flex items-center gap-4">
