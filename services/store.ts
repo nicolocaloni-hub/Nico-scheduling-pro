@@ -47,14 +47,15 @@ export const db = {
     return state.projects;
   },
 
-  createProject: async (name: string, type: ProductionType): Promise<Project> => {
+  createProject: async (name: string, type: ProductionType, startDate?: string, endDate?: string): Promise<Project> => {
     const state = loadState();
     const newProject: Project = {
       id: crypto.randomUUID(),
       name,
       code: name.substring(0, 3).toUpperCase(),
       type,
-      startDate: new Date().toISOString(),
+      startDate: startDate || new Date().toISOString(),
+      endDate,
       totalPages: 0,
       totalScenes: 0
     };

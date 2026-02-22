@@ -61,7 +61,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onOpen, onDel
                     className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-500 transition-all shadow-sm relative z-20 group/trash"
                     title={t('delete_project')}
                 >
-                    <i className="fa-solid fa-trash text-lg group-hover/trash:scale-110 transition-transform"></i>
+                    <span className="text-lg group-hover/trash:scale-110 transition-transform">🗑️</span>
                 </button>
             </div>
         </div>

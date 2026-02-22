@@ -1,9 +1,10 @@
 
 export enum ProductionType {
   Feature = 'Lungometraggio',
+  Medium = 'Mediometraggio',
+  Short = 'Cortometraggio',
   Series = 'Serie TV',
-  Commercial = 'Pubblicità',
-  Short = 'Cortometraggio'
+  Commercial = 'Pubblicità'
 }
 
 export enum DayNight {
@@ -25,6 +26,7 @@ export interface Project {
   code: string;
   type: ProductionType;
   startDate: string;
+  endDate?: string;
   totalPages: number;
   totalScenes: number;
   currentScriptId?: string;

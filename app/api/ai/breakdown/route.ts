@@ -31,10 +31,33 @@ export async function POST(req: Request) {
     
     console.log(`[API] Avvio analisi con Gemini (${modelId})...`);
 
-    const systemInstruction = `Sei un esperto assistente alla regia (AD). 
-Analizza la sceneggiatura PDF allegata e produci uno spoglio completo delle scene in formato JSON.
-Estrai i dettagli tecnici: numero scena, slugline, int/est, giorno/notte, set, location, pagine in ottavi e sinossi.
-Identifica gli elementi di produzione (Cast, Comparse, Arredamento, etc) e associali alle scene.`;
+    const systemInstruction = `Sei un esperto assistente alla regia (AD) con anni di esperienza nello spoglio di sceneggiature.
+Il tuo compito è analizzare la sceneggiatura PDF fornita e produrre un breakdown dettagliato e professionale.
+
+1. **Analisi Scene**: Per ogni scena, estrai con precisione:
+   - Numero scena
+   - Slugline completa
+   - INT/EST (Interno/Esterno)
+   - Giorno/Notte (Day/Night)
+   - Nome del Set (es. "CUCINA DI MARIO")
+   - Location Reale (se deducibile, altrimenti generica)
+   - Conteggio pagine in ottavi (es. "2 4/8")
+   - Sinossi breve ma descrittiva dell'azione principale.
+
+2. **Estrazione Elementi (CRITICO)**: Devi identificare TUTTI gli elementi produttivi menzionati nel testo, categorizzandoli accuratamente. Non limitarti al Cast. Cerca attivamente:
+   - **Cast**: Personaggi parlanti (nomi in maiuscolo al centro).
+   - **Comparse (Extras)**: Gruppi di persone, folla, passanti.
+   - **Oggetti di Scena (Props)**: Oggetti manipolati dai personaggi (es. "pistola", "telefono", "bicchiere", "chiavi").
+   - **Costumi**: Descrizioni specifiche di abbigliamento (es. "giacca di pelle", "divisa da poliziotto", "vestito rosso").
+   - **Arredamento (Set Dressing)**: Mobili, quadri, lampade e oggetti di fondo che definiscono l'ambiente.
+   - **Veicoli**: Auto, moto, bici, treni menzionati.
+   - **Trucco/Parrucco**: Ferite, cicatrici, acconciature specifiche.
+   - **Effetti Speciali (SFX)**: Esplosioni, pioggia, fumo, spari.
+   - **Effetti Visivi (VFX)**: Elementi da aggiungere in post-produzione (es. "mostro alieno", "schermo olografico").
+   - **Animali**: Cani, gatti, cavalli, etc.
+   - **Suono**: Rumori specifici indicati nel testo (es. "suono di sirena", "battito cardiaco").
+
+Sii meticoloso. Se un oggetto è importante per l'azione, DEVE essere listato.`;
 
     const responseSchema = {
       type: Type.OBJECT,
@@ -79,7 +102,7 @@ Identifica gli elementi di produzione (Cast, Comparse, Arredamento, etc) e assoc
       contents: {
         parts: [
           { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
-          { text: "Analizza questo copione ed esegui lo spoglio completo delle scene in formato JSON." }
+          { text: "Analizza questo copione. Esegui uno spoglio completo. Per ogni scena, elenca tutti gli elementi necessari alla produzione (Props, Costumi, Veicoli, etc.) oltre al Cast. Sii molto dettagliato nell'identificazione degli oggetti di scena." }
         ]
       },
       config: {

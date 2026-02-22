@@ -16,6 +16,9 @@ export const Dashboard: React.FC = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [selectedType, setSelectedType] = useState<ProductionType>(ProductionType.Feature);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const { t } = useTranslation();
 
@@ -31,8 +34,11 @@ export const Dashboard: React.FC = () => {
 
   const handleCreate = async () => {
     if (!newProjectName.trim()) return;
-    await db.createProject(newProjectName, ProductionType.Feature);
+    await db.createProject(newProjectName, selectedType, startDate, endDate);
     setNewProjectName('');
+    setStartDate('');
+    setEndDate('');
+    setSelectedType(ProductionType.Feature);
     setShowNewModal(false);
     loadProjects();
   };
@@ -121,6 +127,46 @@ export const Dashboard: React.FC = () => {
                             autoFocus
                         />
                     </div>
+
+                    <div>
+                        <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Tipo Produzione</label>
+                        <div className="relative">
+                            <select
+                                value={selectedType}
+                                onChange={(e) => setSelectedType(e.target.value as ProductionType)}
+                                className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-800 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 appearance-none"
+                            >
+                                <option value={ProductionType.Feature}>Lungometraggio</option>
+                                <option value={ProductionType.Medium}>Mediometraggio</option>
+                                <option value={ProductionType.Short}>Cortometraggio</option>
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                                <i className="fa-solid fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Data Inizio</label>
+                            <input 
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-800 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Data Fine</label>
+                            <input 
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-800 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
+                            />
+                        </div>
+                    </div>
+
                     <div className="flex gap-3 mt-6">
                         <Button variant="secondary" onClick={() => setShowNewModal(false)} className="flex-1">{t('cancel')}</Button>
                         <Button onClick={handleCreate} disabled={!newProjectName} className="flex-1">{t('create_project')}</Button>

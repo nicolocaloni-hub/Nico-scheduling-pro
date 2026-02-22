@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
-import { CalendarEvent } from '../types';
+import { CalendarEvent, Project } from '../types';
 import { Button } from '../components/Button';
 import { DayEventsSheet } from '../components/DayEventsSheet';
 import { GenerateScheduleModal } from '../components/GenerateScheduleModal';
@@ -9,6 +9,7 @@ import { GenerateScheduleModal } from '../components/GenerateScheduleModal';
 export const CalendarPage: React.FC = () => {
   const navigate = useNavigate();
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -18,13 +19,16 @@ export const CalendarPage: React.FC = () => {
     const pid = localStorage.getItem('currentProjectId');
     if (!pid) navigate('/'); else {
       setProjectId(pid);
-      loadEvents(pid);
+      loadData(pid);
     }
   }, [navigate]);
 
-  const loadEvents = async (pid: string) => {
+  const loadData = async (pid: string) => {
     const evts = await db.getEvents(pid);
     setEvents(evts);
+    const projects = await db.getProjects();
+    const p = projects.find(proj => proj.id === pid);
+    if (p) setProject(p);
   };
 
   const getDaysInMonth = (year: number, month: number) => {
@@ -82,6 +86,22 @@ export const CalendarPage: React.FC = () => {
           const hasShooting = dayEvents.some(e => e.type === 'shooting');
           const isToday = dStr === todayStr;
 
+          // Check if date is within project duration
+          let isProjectDay = false;
+          if (project && project.startDate && project.endDate) {
+            const start = new Date(project.startDate);
+            const end = new Date(project.endDate);
+            const current = new Date(dStr);
+            // Reset hours to compare dates only
+            start.setHours(0,0,0,0);
+            end.setHours(0,0,0,0);
+            current.setHours(0,0,0,0);
+            
+            if (current >= start && current <= end) {
+                isProjectDay = true;
+            }
+          }
+
           return (
             <div 
               key={day} 
@@ -89,7 +109,9 @@ export const CalendarPage: React.FC = () => {
               className={`aspect-square rounded-xl border flex flex-col items-center justify-start pt-2 cursor-pointer relative transition-all active:scale-95 ${
                 isToday 
                   ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-500 text-primary-900 dark:text-white' 
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  : isProjectDay
+                    ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-100'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               <span className={`text-sm font-bold ${isToday ? 'text-primary-600 dark:text-primary-400' : ''}`}>{day}</span>

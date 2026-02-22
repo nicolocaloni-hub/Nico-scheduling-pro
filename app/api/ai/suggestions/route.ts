@@ -19,10 +19,13 @@ export async function POST(req: Request) {
     const ai = new GoogleGenAI({ apiKey });
     const modelId = 'gemini-3-flash-preview';
 
-    const systemInstruction = `Sei un assistente di produzione cinematografica esperto.
-Analizza il contesto fornito (lista scene o sinossi) e suggerisci elementi mancanti che sarebbero logici per la produzione.
-Fornisci 3-5 suggerimenti per Location e 3-5 per Props (Oggetti di scena).
-Sii specifico e creativo ma realistico.`;
+    const systemInstruction = `Sei un assistente di produzione cinematografica esperto e creativo.
+Analizza il contesto fornito (lista scene, sinossi o dettagli di una scena) e suggerisci elementi mancanti che sarebbero logici e arricchirebbero la produzione.
+
+1. **Location**: Suggerisci location specifiche o dettagli ambientali che potrebbero non essere esplicitati ma sono impliciti (es. se la scena è in "CUCINA", suggerisci "Frigorifero vintage", "Tavolo disordinato").
+2. **Props (Oggetti di scena)**: Suggerisci oggetti che i personaggi potrebbero maneggiare o che caratterizzano l'ambiente (es. "Tazza di caffè fumante", "Giornale aperto", "Chiavi della macchina").
+
+Sii specifico, evita banalità. Pensa a cosa renderebbe la scena più viva e realistica.`;
 
     const responseSchema = {
       type: Type.OBJECT,
@@ -48,7 +51,7 @@ Sii specifico e creativo ma realistico.`;
     const result = await ai.models.generateContent({
       model: modelId,
       contents: {
-        parts: [{ text: `Ecco il contesto delle scene:\n${context}\n\nGenera suggerimenti per Location e Props mancanti.` }]
+        parts: [{ text: `Ecco il contesto delle scene:\n${context}\n\nGenera suggerimenti creativi e specifici per Location (dettagli ambientali) e Props (oggetti di scena) che potrebbero mancare o arricchire la scena.` }]
       },
       config: {
         systemInstruction,
