@@ -31,7 +31,7 @@ const translations = {
     
     // Script Import
     import_title: 'Importa Sceneggiatura',
-    import_subtitle: 'Pianificazione AI su Google Cloud Run',
+    import_subtitle: 'Pianificazione AI',
     start_analysis: 'Inizia Analisi',
     reset: 'Reset',
     go_to_pdl: 'Vai al PDL',
@@ -98,7 +98,7 @@ const translations = {
     
     // Script Import
     import_title: 'Import Script',
-    import_subtitle: 'AI Scheduling on Google Cloud Run',
+    import_subtitle: 'AI Scheduling',
     start_analysis: 'Start Analysis',
     reset: 'Reset',
     go_to_pdl: 'Go to Stripboard',

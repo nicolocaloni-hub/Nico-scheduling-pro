@@ -39,9 +39,9 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             </button>
             <button
               onClick={onConfirm}
-              className="px-4 py-3 rounded-xl font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
+              className="px-4 py-3 rounded-xl font-black text-white bg-red-600 hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 uppercase tracking-wider text-xs flex items-center justify-center gap-2 active:scale-95"
             >
-              Cancella
+              <i className="fa-solid fa-trash"></i> Cancella
             </button>
           </div>
         </div>

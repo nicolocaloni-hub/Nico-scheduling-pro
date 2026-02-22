@@ -52,13 +52,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onOpen, onDel
                     <span>{project.totalPages.toFixed(1)} {t('pages')}</span>
                 </div>
                 <button 
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerUp={(e) => e.stopPropagation()}
                     onClick={(e) => {
                         e.stopPropagation();
                         handleDelete();
                     }}
-                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors relative z-20"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-500 transition-all shadow-sm relative z-20 group/trash"
+                    title={t('delete_project')}
                 >
-                    <i className="fa-solid fa-trash text-sm"></i>
+                    <i className="fa-solid fa-trash text-lg group-hover/trash:scale-110 transition-transform"></i>
                 </button>
             </div>
         </div>
