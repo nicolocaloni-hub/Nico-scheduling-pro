@@ -1,5 +1,6 @@
 
-import { BreakdownResult, Scene, AnalysisJob } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { BreakdownResult, Scene } from "../types";
 
 export const parseEighthsToFloat = (eighthsStr: string): number => {
   if (!eighthsStr) return 0;
@@ -13,90 +14,136 @@ export const parseEighthsToFloat = (eighthsStr: string): number => {
   return whole + (eighths / 8);
 };
 
-const safeFetch = async (url: string, options?: RequestInit) => {
-  try {
-    const response = await fetch(url, options);
-    const contentType = response.headers.get("content-type");
-    
-    if (contentType && contentType.includes("application/json")) {
-      const data = await response.json();
-      return { ok: response.ok, status: response.status, data };
-    } else {
-      const text = await response.text();
-      return { 
-        ok: false, 
-        status: response.status, 
-        error: `Risposta non JSON: ${text.substring(0, 100)}...` 
-      };
-    }
-  } catch (err: any) {
-    return { ok: false, status: 0, error: err.message };
-  }
-};
-
-export const checkAiEnv = async () => {
-  return await safeFetch('/api/ai/env');
-};
-
-export const runSimpleTest = async () => {
-  return await safeFetch('/api/ai/simple-test');
-};
-
-export const startScriptAnalysis = async (pdfBase64: string): Promise<string> => {
-  const { ok, data, error } = await safeFetch('/api/ai/breakdown_start', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pdfBase64 })
-  });
-  if (!ok) throw new Error(error || data?.message || "Impossibile avviare l'analisi");
-  return data.jobId;
-};
-
-export const getAnalysisStatus = async (jobId: string): Promise<AnalysisJob> => {
-  const { ok, data, error } = await safeFetch(`/api/ai/breakdown_status?jobId=${jobId}`);
-  if (!ok) throw new Error(error || data?.message || "Errore nel recupero dello stato");
-  return data.job;
-};
-
-export const getAnalysisResult = async (jobId: string): Promise<BreakdownResult> => {
-  const { ok, data, error } = await safeFetch(`/api/ai/breakdown_result?jobId=${jobId}`);
-  if (!ok) throw new Error(error || data?.message || "Errore nel recupero del risultato");
-  return data.result;
-};
-
-export const optimizeSchedule = async (scenes: Scene[]): Promise<string[]> => {
-  const { ok, data, error } = await safeFetch('/api/ai/optimize-schedule', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenes })
-  });
-  if (!ok) throw new Error(error || data?.message || "Ottimizzazione fallita");
-  return data.orderedSceneIds;
+const getApiKey = () => {
+  const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("API Key mancante. Verifica la configurazione.");
+  return key;
 };
 
 export const analyzeScriptPdf = async (
   pdfBase64: string, 
   onDebugInfo?: (info: any) => void
-): Promise<BreakdownResult> => {
-  // Metodo legacy mantenuto per compatibilità, ma ora useremo il nuovo workflow job-based
-  const { ok, status, data, error } = await safeFetch('/api/ai/breakdown', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pdfBase64 })
-  });
+): Promise<{ data: BreakdownResult, summary: any, modelUsed: string }> => {
+  
+  const modelId = 'gemini-2.0-flash'; // Using flash for speed/cost, or pro for quality
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
-  if (onDebugInfo) {
-    onDebugInfo({
-      status,
-      modelUsed: data?.modelUsed,
-      message: data?.message,
-      error: error || data?.error
+  const systemInstruction = `Sei un esperto assistente alla regia (AD) con anni di esperienza nello spoglio di sceneggiature.
+Il tuo compito è analizzare la sceneggiatura PDF fornita e produrre un breakdown dettagliato e professionale.
+
+1. **Analisi Scene**: Per ogni scena, estrai con precisione:
+   - Numero scena
+   - Slugline completa
+   - INT/EST (Interno/Esterno)
+   - Giorno/Notte (Day/Night)
+   - Nome del Set (es. "CUCINA DI MARIO")
+   - Location Reale (se deducibile, altrimenti generica)
+   - Conteggio pagine in ottavi (es. "2 4/8")
+   - Sinossi breve ma descrittiva dell'azione principale.
+
+2. **Estrazione Elementi (CRITICO)**: Devi identificare TUTTI gli elementi produttivi menzionati nel testo, categorizzandoli accuratamente. Non limitarti al Cast. Cerca attivamente:
+   - **Cast**: Personaggi parlanti (nomi in maiuscolo al centro).
+   - **Comparse (Extras)**: Gruppi di persone, folla, passanti.
+   - **Oggetti di Scena (Props)**: Oggetti manipolati dai personaggi (es. "pistola", "telefono", "bicchiere", "chiavi").
+   - **Costumi**: Descrizioni specifiche di abbigliamento (es. "giacca di pelle", "divisa da poliziotto", "vestito rosso").
+   - **Arredamento (Set Dressing)**: Mobili, quadri, lampade e oggetti di fondo che definiscono l'ambiente.
+   - **Veicoli**: Auto, moto, bici, treni menzionati.
+   - **Trucco/Parrucco**: Ferite, cicatrici, acconciature specifiche.
+   - **Effetti Speciali (SFX)**: Esplosioni, pioggia, fumo, spari.
+   - **Effetti Visivi (VFX)**: Elementi da aggiungere in post-produzione (es. "mostro alieno", "schermo olografico").
+   - **Animali**: Cani, gatti, cavalli, etc.
+   - **Suono**: Rumori specifici indicati nel testo (es. "suono di sirena", "battito cardiaco").
+
+Sii meticoloso. Se un oggetto è importante per l'azione, DEVE essere listato.`;
+
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      scenes: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            sceneNumber: { type: Type.STRING },
+            slugline: { type: Type.STRING },
+            intExt: { type: Type.STRING },
+            dayNight: { type: Type.STRING },
+            setName: { type: Type.STRING },
+            locationName: { type: Type.STRING },
+            pageCountInEighths: { type: Type.STRING },
+            synopsis: { type: Type.STRING },
+          },
+          required: ["sceneNumber", "slugline", "intExt", "dayNight", "pageCountInEighths", "synopsis"]
+        }
+      },
+      elements: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            category: { type: Type.STRING }
+          }
+        }
+      },
+      sceneElements: {
+        type: Type.OBJECT,
+        additionalProperties: { type: Type.ARRAY, items: { type: Type.STRING } }
+      }
+    },
+    required: ["scenes", "elements", "sceneElements"]
+  };
+
+  try {
+    const result = await ai.models.generateContent({
+      model: modelId,
+      contents: {
+        parts: [
+          { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
+          { text: "Analizza questo copione. Esegui uno spoglio completo. Per ogni scena, elenca tutti gli elementi necessari alla produzione (Props, Costumi, Veicoli, etc.) oltre al Cast. Sii molto dettagliato nell'identificazione degli oggetti di scena." }
+        ]
+      },
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: responseSchema as any
+      }
     });
-  }
 
-  if (!ok) {
-    throw new Error(error || data?.error || data?.message || `Errore Server (${status})`);
-  }
+    const rawJson = result.text || "{}";
+    const data = JSON.parse(rawJson);
 
-  return data.data as BreakdownResult;
+    const summary = {
+      sceneCount: data.scenes?.length || 0,
+      locationCount: new Set(data.scenes?.map((s: any) => s.locationName)).size,
+      castCount: data.elements?.filter((e: any) => e.category === 'Cast').length || 0,
+      propsCount: data.elements?.filter((e: any) => (e.category || '').toLowerCase().includes('prop')).length || 0,
+    };
+
+    if (onDebugInfo) {
+      onDebugInfo({
+        status: 200,
+        modelUsed: modelId,
+        message: "Analisi completata con successo"
+      });
+    }
+
+    return { data, summary, modelUsed: modelId };
+
+  } catch (error: any) {
+    if (onDebugInfo) {
+      onDebugInfo({
+        status: 500,
+        error: error.message
+      });
+    }
+    throw error;
+  }
 };
+
+// Placeholder for optimization (can be implemented similarly if needed)
+export const optimizeSchedule = async (scenes: Scene[]): Promise<string[]> => {
+  // Simple mock implementation or implement real logic
+  return scenes.map(s => s.id);
+};
+

@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
-import { Scene, ProductionElement, ElementCategory, IntExt, DayNight } from '../types';
+import { Scene, ProductionElement, ElementCategory, IntExt, DayNight, ProductionType } from '../types';
 import { Button } from '../components/Button';
-import { parseEighthsToFloat } from '../services/geminiService';
+import { parseEighthsToFloat, analyzeScriptPdf } from '../services/geminiService';
 import { AiStatusBar, ImportState } from '../components/AiStatusBar';
 import { DebugDetailsAccordion } from '../components/DebugDetailsAccordion';
 import { ResultsPreview } from '../components/ResultsPreview';
+import { CreateProjectModal } from '../components/CreateProjectModal';
 import { useTranslation } from '../services/i18n';
 
 export const ScriptImport: React.FC = () => {
@@ -24,6 +25,7 @@ export const ScriptImport: React.FC = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [modelUsed, setModelUsed] = useState<string | undefined>(undefined);
   const [previewData, setPreviewData] = useState<any>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const { t } = useTranslation();
 
   const addLog = (msg: string) => {
@@ -75,10 +77,15 @@ export const ScriptImport: React.FC = () => {
     };
   }, [navigate, projectId]); // Added projectId dependency to detect changes
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const handleReset = async () => {
-    if (!projectId) return;
-    if (window.confirm("Resettare il copione per questo progetto? I dati non salvati andranno persi.")) {
-      await db.clearAnalysisResult(projectId);
+    const confirmMessage = "Sei sicuro di voler resettare? I dati attuali andranno persi.";
+    if (window.confirm(confirmMessage)) {
+      if (projectId) {
+        await db.clearAnalysisResult(projectId);
+      }
+      
       setSummary(null);
       setPreviewData(null);
       setModelUsed(undefined);
@@ -86,8 +93,40 @@ export const ScriptImport: React.FC = () => {
       setSelectedFile(null);
       if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
       setPdfPreviewUrl(null);
+      
+      // Clear the input value so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
       addLog("Stato copione resettato.");
     }
+  };
+
+  const handleCreateProject = async (name: string, type: ProductionType, startDate: string, endDate: string) => {
+    // 1. Create the project
+    const newProject = await db.createProject(name, type, startDate, endDate);
+    
+    // 2. Set as current project
+    localStorage.setItem('currentProjectId', newProject.id);
+    setProjectId(newProject.id);
+
+    // 3. Save the analysis results to this new project if available
+    if (previewData) {
+        await saveResultsToDb(previewData, newProject.id);
+        await db.saveAnalysisResult(newProject.id, {
+            summary,
+            data: previewData,
+            modelUsed,
+            fileName: selectedFile?.name
+        });
+    }
+
+    setShowCreateModal(false);
+    addLog(`Progetto "${name}" creato con successo.`);
+    
+    // Feedback to user
+    alert(`Progetto "${name}" creato con successo!`);
   };
 
   // Banner Long Press Logic - REMOVED as per request.
@@ -120,27 +159,13 @@ export const ScriptImport: React.FC = () => {
   };
 
   const checkServerEnv = async () => {
-    addLog("[UI] Controllo ambiente server...");
-    try {
-      const res = await fetch('/api/ai/env');
-      if (!res.ok) {
-        addLog(`[ERROR] Server returned ${res.status}. Route likely not found.`);
-        return;
-      }
-      const data = await res.json();
-      addLog(`[SERVER] Env: ${data.env}, Key Present: ${data.keyPresent}`);
-      if (data.details) {
-        Object.entries(data.details).forEach(([key, val]) => {
-          addLog(`[SERVER] ${key}: ${val ? 'Sì' : 'No'}`);
-        });
-      }
-    } catch (err: any) {
-      addLog(`[ERROR] Errore controllo env: ${err.message}`);
-    }
+    addLog("[UI] Controllo ambiente...");
+    const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    addLog(`[CLIENT] API Key presente: ${key ? 'Sì' : 'No'}`);
   };
 
   const startAnalysis = async () => {
-    if (!selectedFile || !projectId) return;
+    if (!selectedFile) return;
     
     addLog("[UI] startAnalysis triggered");
     setImportState('uploading');
@@ -157,37 +182,24 @@ export const ScriptImport: React.FC = () => {
         reader.readAsDataURL(selectedFile);
       });
       
-      addLog("Invio al server in corso...");
+      addLog("Invio a Gemini in corso...");
       setImportState('analyzing');
       
-      const response = await fetch('/api/ai/breakdown', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64: base64 })
+      const result = await analyzeScriptPdf(base64, (info) => {
+        if (info.error) {
+            addLog(`[ERROR] ${info.error}`);
+        } else {
+            addLog(`[INFO] Status: ${info.status}, Model: ${info.modelUsed}`);
+        }
       });
-
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        addLog(`[ERROR] Risposta non JSON: ${text.substring(0, 200)}...`);
-        throw new Error("Il server non ha restituito JSON. Verifica il deploy di Cloud Run.");
-      }
-
-      const result = await response.json();
-      
-      if (!response.ok || !result.ok) {
-        throw new Error(result.error || `Errore server: ${response.status}`);
-      }
 
       addLog(`Analisi completata! Modello: ${result.modelUsed}`);
       setModelUsed(result.modelUsed);
       setSummary(result.summary);
       setPreviewData(result.data);
       
-      await saveResultsToDb(result.data);
-      
-      // Save for persistence
       if (projectId) {
+        await saveResultsToDb(result.data, projectId);
         await db.saveAnalysisResult(projectId, {
           summary: result.summary,
           data: result.data,
@@ -197,7 +209,7 @@ export const ScriptImport: React.FC = () => {
       }
       
       setImportState('done');
-      addLog("Dati salvati con successo.");
+      addLog("Analisi completata.");
 
     } catch (err: any) {
       console.error("Analysis failed:", err);
@@ -208,8 +220,8 @@ export const ScriptImport: React.FC = () => {
     }
   };
 
-  const saveResultsToDb = async (data: any) => {
-    if (!projectId) return;
+  const saveResultsToDb = async (data: any, targetProjectId: string) => {
+    if (!targetProjectId) return;
     
     addLog("Sincronizzazione database locale...");
     
@@ -217,14 +229,14 @@ export const ScriptImport: React.FC = () => {
     const elements: ProductionElement[] = (data.elements || []).map((el: any) => {
       const newEl: ProductionElement = {
         id: crypto.randomUUID(),
-        projectId,
+        projectId: targetProjectId,
         name: el.name,
         category: el.category as ElementCategory
       };
       elementsMap[el.name] = newEl;
       return newEl;
     });
-    await db.saveElements(projectId, elements);
+    await db.saveElements(targetProjectId, elements);
 
     const scenes: Scene[] = (data.scenes || []).map((s: any) => {
       const elementNames = data.sceneElements?.[s.sceneNumber] || [];
@@ -232,7 +244,7 @@ export const ScriptImport: React.FC = () => {
 
       return {
         id: crypto.randomUUID(),
-        projectId: projectId!,
+        projectId: targetProjectId,
         sceneNumber: s.sceneNumber,
         slugline: s.slugline,
         intExt: s.intExt as IntExt,
@@ -246,11 +258,11 @@ export const ScriptImport: React.FC = () => {
       };
     });
 
-    await db.saveScenes(projectId, scenes);
-    await db.createDefaultStripboard(projectId, scenes);
+    await db.saveScenes(targetProjectId, scenes);
+    await db.createDefaultStripboard(targetProjectId, scenes);
     await db.saveScriptVersion({
       id: crypto.randomUUID(),
-      projectId,
+      projectId: targetProjectId,
       fileName: selectedFile!.name,
       fileUrl: '#local',
       version: 1,
@@ -300,6 +312,7 @@ export const ScriptImport: React.FC = () => {
             <label className="bg-primary-600 px-6 py-2 rounded-xl text-xs font-black cursor-pointer hover:bg-primary-500 transition-all flex-shrink-0 active:scale-95 shadow-lg shadow-primary-900/20 text-white">
               {t('browse')}
               <input 
+                ref={fileInputRef}
                 type="file" 
                 className="hidden" 
                 accept="application/pdf" 
@@ -335,6 +348,16 @@ export const ScriptImport: React.FC = () => {
 
           {/* Manual Mode Separator */}
           <div className="pt-8 pb-4">
+            {/* Create Project Button (Only if analysis is done and no project selected, or even if selected but user wants new) */}
+            {importState === 'done' && !projectId && (
+                <div className="flex justify-end mb-8">
+                    <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
+                        <i className="fa-solid fa-plus"></i>
+                        {t('create_project')}
+                    </Button>
+                </div>
+            )}
+
             <div className="relative flex items-center justify-center">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-dashed border-gray-300 dark:border-gray-600"></div>
@@ -361,6 +384,13 @@ export const ScriptImport: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showCreateModal && (
+        <CreateProjectModal 
+            onClose={() => setShowCreateModal(false)}
+            onCreate={handleCreateProject}
+        />
+      )}
     </div>
   );
 };

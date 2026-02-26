@@ -126,6 +126,28 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
     return acc + (scene?.pages || 0);
   }, 0);
 
+  const moveStrip = async (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === board.strips.length - 1) return;
+
+    const newStrips = [...board.strips];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    // Swap
+    [newStrips[index], newStrips[targetIndex]] = [newStrips[targetIndex], newStrips[index]];
+    
+    // Update order property
+    newStrips.forEach((s, i) => s.order = i);
+
+    const updatedBoard = { ...board, strips: newStrips };
+    
+    // Optimistic update
+    onUpdate(updatedBoard);
+    
+    // Persist
+    await db.saveStripboard(updatedBoard);
+  };
+
   const dayCount = board.strips.filter(s => s.isDayBreak).length + 1;
 
   return (
@@ -169,8 +191,26 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
              {board.strips.map((strip, idx) => {
                if (strip.isDayBreak) {
                  return (
-                   <div key={strip.id} className="bg-white dark:bg-gray-800 p-2 rounded text-center text-xs font-bold text-yellow-600 dark:text-yellow-500 uppercase tracking-widest border border-gray-200 dark:border-gray-700 my-4 shadow-sm">
-                     {t('end_of_day')} {strip.dayNumber || '?'}
+                   <div key={strip.id} className="flex items-center gap-2">
+                        <div className="flex flex-col gap-1">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); moveStrip(idx, 'up'); }}
+                                className="text-gray-400 hover:text-primary-500 disabled:opacity-30 p-1"
+                                disabled={idx === 0}
+                            >
+                                <i className="fa-solid fa-chevron-up text-[10px]"></i>
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); moveStrip(idx, 'down'); }}
+                                className="text-gray-400 hover:text-primary-500 disabled:opacity-30 p-1"
+                                disabled={idx === board.strips.length - 1}
+                            >
+                                <i className="fa-solid fa-chevron-down text-[10px]"></i>
+                            </button>
+                        </div>
+                       <div className="flex-1 bg-white dark:bg-gray-800 p-2 rounded text-center text-xs font-bold text-yellow-600 dark:text-yellow-500 uppercase tracking-widest border border-gray-200 dark:border-gray-700 my-4 shadow-sm">
+                         {t('end_of_day')} {strip.dayNumber || '?'}
+                       </div>
                    </div>
                  );
                }
@@ -184,6 +224,24 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
                    className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 flex justify-between items-center hover:border-primary-500 dark:hover:border-primary-500 cursor-pointer shadow-sm"
                  >
                    <div className="flex items-center gap-3">
+                     {/* Reorder Arrows */}
+                     <div className="flex flex-col gap-1 mr-1">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); moveStrip(idx, 'up'); }}
+                            className="text-gray-400 hover:text-primary-500 disabled:opacity-30 p-1"
+                            disabled={idx === 0}
+                        >
+                            <i className="fa-solid fa-chevron-up text-[10px]"></i>
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); moveStrip(idx, 'down'); }}
+                            className="text-gray-400 hover:text-primary-500 disabled:opacity-30 p-1"
+                            disabled={idx === board.strips.length - 1}
+                        >
+                            <i className="fa-solid fa-chevron-down text-[10px]"></i>
+                        </button>
+                     </div>
+
                      <span className="font-bold text-gray-900 dark:text-white w-8 text-center">{scene.sceneNumber}</span>
                      <div>
                        <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
@@ -193,9 +251,6 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
                          {scene.synopsis}
                        </div>
                      </div>
-                   </div>
-                   <div className="text-xs font-mono text-gray-400">
-                     {scene.pageCountInEighths}
                    </div>
                  </div>
                );

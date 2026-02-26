@@ -5,6 +5,7 @@ import { db } from '../services/store';
 import { Project, ProductionType } from '../types';
 import { ProjectCard } from '../components/ProjectCard';
 import { Button } from '../components/Button';
+import { CreateProjectModal } from '../components/CreateProjectModal';
 import { SettingsModal } from '../components/SettingsModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { useTranslation } from '../services/i18n';
@@ -15,10 +16,6 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [selectedType, setSelectedType] = useState<ProductionType>(ProductionType.Feature);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const { t } = useTranslation();
 
@@ -32,13 +29,8 @@ export const Dashboard: React.FC = () => {
     setLoading(false);
   };
 
-  const handleCreate = async () => {
-    if (!newProjectName.trim()) return;
-    await db.createProject(newProjectName, selectedType, startDate, endDate);
-    setNewProjectName('');
-    setStartDate('');
-    setEndDate('');
-    setSelectedType(ProductionType.Feature);
+  const handleCreate = async (name: string, type: ProductionType, startDate: string, endDate: string) => {
+    await db.createProject(name, type, startDate, endDate);
     setShowNewModal(false);
     loadProjects();
   };
@@ -113,67 +105,10 @@ export const Dashboard: React.FC = () => {
       )}
 
       {showNewModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 w-full max-w-md p-6 rounded-2xl shadow-2xl">
-                <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">{t('new_project_modal_title')}</h2>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">{t('project_name_label')}</label>
-                        <input 
-                            value={newProjectName}
-                            onChange={(e) => setNewProjectName(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-800 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
-                            placeholder="es. Il Padrino IV"
-                            autoFocus
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Tipo Produzione</label>
-                        <div className="relative">
-                            <select
-                                value={selectedType}
-                                onChange={(e) => setSelectedType(e.target.value as ProductionType)}
-                                className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-800 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 appearance-none"
-                            >
-                                <option value={ProductionType.Feature}>Lungometraggio</option>
-                                <option value={ProductionType.Medium}>Mediometraggio</option>
-                                <option value={ProductionType.Short}>Cortometraggio</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
-                                <i className="fa-solid fa-chevron-down text-xs"></i>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Data Inizio</label>
-                            <input 
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-800 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Data Fine</label>
-                            <input 
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-800 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3 mt-6">
-                        <Button variant="secondary" onClick={() => setShowNewModal(false)} className="flex-1">{t('cancel')}</Button>
-                        <Button onClick={handleCreate} disabled={!newProjectName} className="flex-1">{t('create_project')}</Button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <CreateProjectModal 
+            onClose={() => setShowNewModal(false)}
+            onCreate={handleCreate}
+        />
       )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
