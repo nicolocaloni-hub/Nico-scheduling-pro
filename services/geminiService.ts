@@ -25,7 +25,7 @@ export const analyzeScriptPdf = async (
   onDebugInfo?: (info: any) => void
 ): Promise<{ data: BreakdownResult, summary: any, modelUsed: string }> => {
   
-  const modelId = 'gemini-2.0-flash'; // Using flash for speed/cost, or pro for quality
+  const modelId = 'gemini-flash-latest'; // Using flash for speed/cost, or pro for quality
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
   const systemInstruction = `Sei un esperto assistente alla regia (AD) con anni di esperienza nello spoglio di sceneggiature.

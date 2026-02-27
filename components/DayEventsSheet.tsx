@@ -7,15 +7,38 @@ interface DayEventsSheetProps {
   date: string;
   events: CalendarEvent[];
   projectId: string;
+  projectType?: string;
+  projectName?: string;
+  projectStartDate?: string;
+  projectEndDate?: string;
   onClose: () => void;
   onUpdate: () => void;
 }
 
-export const DayEventsSheet: React.FC<DayEventsSheetProps> = ({ date, events, projectId, onClose, onUpdate }) => {
+export const DayEventsSheet: React.FC<DayEventsSheetProps> = ({ 
+  date, 
+  events, 
+  projectId, 
+  projectType, 
+  projectName, 
+  projectStartDate,
+  projectEndDate,
+  onClose, 
+  onUpdate 
+}) => {
   const [isAdding, setIsAdding] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
   const [newEventNotes, setNewEventNotes] = useState('');
+
+  // Check if current date is within project range
+  const isProjectDay = React.useMemo(() => {
+    if (!projectStartDate || !projectEndDate) return false;
+    const current = date;
+    const start = projectStartDate.split('T')[0];
+    const end = projectEndDate.split('T')[0];
+    return current >= start && current <= end;
+  }, [date, projectStartDate, projectEndDate]);
 
   const handleAddEvent = async () => {
     if (!newEventTitle.trim()) return;
@@ -72,6 +95,21 @@ export const DayEventsSheet: React.FC<DayEventsSheetProps> = ({ date, events, pr
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Project Info Banner - Show if it's a project day */}
+          {isProjectDay && projectName && projectType && (
+             <div className="mb-2 p-4 bg-indigo-900/20 rounded-xl border border-indigo-500/30 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-1">{projectName}</h3>
+                  <span className="inline-block px-2 py-1 rounded bg-indigo-500/20 text-indigo-300 text-xs font-bold uppercase tracking-wider border border-indigo-500/30">
+                      {projectType === 'feature' ? 'Lungometraggio' : projectType === 'medium' ? 'Mediometraggio' : 'Cortometraggio'}
+                  </span>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                  <i className="fa-solid fa-film text-indigo-400"></i>
+                </div>
+             </div>
+          )}
+
           {events.length === 0 && !isAdding && (
             <div className="text-center py-10 text-gray-500">
               <i className="fa-regular fa-calendar-xmark text-4xl mb-3 opacity-50"></i>

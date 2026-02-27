@@ -30,6 +30,7 @@ export interface Project {
   totalPages: number;
   totalScenes: number;
   currentScriptId?: string;
+  shootDays?: string[]; // List of ISO dates YYYY-MM-DD
 }
 
 export interface Scene {
@@ -46,6 +47,7 @@ export interface Scene {
   synopsis: string;
   scriptText?: string;
   elementIds: string[];
+  shootDay?: string; // YYYY-MM-DD
 }
 
 export enum ElementCategory {
@@ -97,6 +99,7 @@ export interface Stripboard {
   projectId: string;
   name: string;
   strips: Strip[];
+  shootingDays?: string[]; // List of ISO dates YYYY-MM-DD
 }
 
 // Nuovi tipi per l'analisi Job-based

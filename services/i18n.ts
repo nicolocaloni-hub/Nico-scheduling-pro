@@ -18,8 +18,8 @@ const translations = {
     no_projects: 'Nessun progetto trovato. Crea il tuo primo progetto!',
     new_project_modal_title: 'Nuovo Progetto',
     project_name_label: 'Nome del Progetto',
-    cancel: 'Annulla',
     create_project: 'Crea Progetto',
+    delete_project: 'Elimina Progetto',
     delete_project_confirm: 'Eliminare progetto?\nQuesta azione elimina definitivamente il progetto e i dati associati.',
     
     // Settings
@@ -85,8 +85,8 @@ const translations = {
     no_projects: 'No projects found. Create your first project!',
     new_project_modal_title: 'New Project',
     project_name_label: 'Project Name',
-    cancel: 'Cancel',
     create_project: 'Create Project',
+    delete_project: 'Delete Project',
     delete_project_confirm: 'Delete project?\nThis action permanently deletes the project and associated data.',
     
     // Settings

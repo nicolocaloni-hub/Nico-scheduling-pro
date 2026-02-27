@@ -89,15 +89,11 @@ export const CalendarPage: React.FC = () => {
           // Check if date is within project duration
           let isProjectDay = false;
           if (project && project.startDate && project.endDate) {
-            const start = new Date(project.startDate);
-            const end = new Date(project.endDate);
-            const current = new Date(dStr);
-            // Reset hours to compare dates only
-            start.setHours(0,0,0,0);
-            end.setHours(0,0,0,0);
-            current.setHours(0,0,0,0);
+            // Normalize project dates to YYYY-MM-DD strings for safe comparison
+            const pStart = project.startDate.split('T')[0];
+            const pEnd = project.endDate.split('T')[0];
             
-            if (current >= start && current <= end) {
+            if (dStr >= pStart && dStr <= pEnd) {
                 isProjectDay = true;
             }
           }
@@ -110,7 +106,7 @@ export const CalendarPage: React.FC = () => {
                 isToday 
                   ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-500 text-primary-900 dark:text-white' 
                   : isProjectDay
-                    ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-100'
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-900 dark:text-red-100'
                     : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
@@ -136,22 +132,20 @@ export const CalendarPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto py-6 px-4 h-[calc(100vh-80px)] flex flex-col">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-            <button onClick={handlePrevMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-              <i className="fa-solid fa-chevron-left"></i>
+      <div className="flex justify-center items-center mb-6 relative">
+        <div className="flex items-center gap-2">
+            <button onClick={handlePrevMonth} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+              <span className="text-lg leading-none pb-1">←</span>
             </button>
-            <h1 className="text-xl font-black text-gray-900 dark:text-white capitalize min-w-[140px] text-center">
+            <h1 className="text-xl font-black text-gray-900 dark:text-white capitalize min-w-[120px] text-center">
               {currentDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
             </h1>
-            <button onClick={handleNextMonth} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-              <i className="fa-solid fa-chevron-right"></i>
+            <button onClick={handleNextMonth} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+              <span className="text-lg leading-none pb-1">→</span>
             </button>
         </div>
         
-        <Button variant="secondary" onClick={() => setShowGenerateModal(true)} className="text-xs h-9 px-3">
-            <i className="fa-solid fa-wand-magic-sparkles mr-2"></i> Auto-Genera
-        </Button>
+        {/* Hidden button to keep layout if needed, or just removed completely as requested */}
       </div>
 
       {/* Calendar Grid */}
@@ -165,8 +159,12 @@ export const CalendarPage: React.FC = () => {
           date={selectedDate}
           events={events.filter(e => e.date === selectedDate)}
           projectId={projectId}
+          projectType={project?.type}
+          projectName={project?.name}
+          projectStartDate={project?.startDate}
+          projectEndDate={project?.endDate}
           onClose={() => setSelectedDate(null)}
-          onUpdate={() => projectId && loadEvents(projectId)}
+          onUpdate={() => projectId && loadData(projectId)}
         />
       )}
 
@@ -174,7 +172,7 @@ export const CalendarPage: React.FC = () => {
         <GenerateScheduleModal 
           projectId={projectId}
           onClose={() => setShowGenerateModal(false)}
-          onGenerate={() => loadEvents(projectId)}
+          onGenerate={() => loadData(projectId)}
         />
       )}
     </div>

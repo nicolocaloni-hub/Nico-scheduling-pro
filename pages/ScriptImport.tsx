@@ -9,6 +9,7 @@ import { AiStatusBar, ImportState } from '../components/AiStatusBar';
 import { DebugDetailsAccordion } from '../components/DebugDetailsAccordion';
 import { ResultsPreview } from '../components/ResultsPreview';
 import { CreateProjectModal } from '../components/CreateProjectModal';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { useTranslation } from '../services/i18n';
 
 export const ScriptImport: React.FC = () => {
@@ -26,6 +27,7 @@ export const ScriptImport: React.FC = () => {
   const [modelUsed, setModelUsed] = useState<string | undefined>(undefined);
   const [previewData, setPreviewData] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const { t } = useTranslation();
 
   const addLog = (msg: string) => {
@@ -56,7 +58,7 @@ export const ScriptImport: React.FC = () => {
       setModelUsed(undefined);
       setImportState('idle');
       setSelectedFile(null);
-      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      // Removed URL.revokeObjectURL to prevent potential issues with React rendering cycles
       setPdfPreviewUrl(null);
 
       // Check for saved analysis
@@ -79,33 +81,39 @@ export const ScriptImport: React.FC = () => {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleReset = async () => {
-    const confirmMessage = "Sei sicuro di voler resettare? I dati attuali andranno persi.";
-    if (window.confirm(confirmMessage)) {
-      if (projectId) {
-        await db.clearAnalysisResult(projectId);
-      }
-      
-      setSummary(null);
-      setPreviewData(null);
-      setModelUsed(undefined);
-      setImportState('idle');
-      setSelectedFile(null);
-      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
-      setPdfPreviewUrl(null);
-      
-      // Clear the input value so the same file can be selected again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
-      addLog("Stato copione resettato.");
-    }
+  const handleReset = () => {
+    setShowResetModal(true);
   };
 
-  const handleCreateProject = async (name: string, type: ProductionType, startDate: string, endDate: string) => {
+  const confirmReset = async () => {
+    setShowResetModal(false);
+    if (projectId) {
+      // Only clear the analysis cache/preview data, NOT the actual project data (scenes, stripboards, etc.)
+      await db.clearAnalysisResult(projectId);
+    }
+    
+    // Clear local state
+    setSummary(null);
+    setPreviewData(null);
+    setModelUsed(undefined);
+    setImportState('idle');
+    setSelectedFile(null);
+    // Removed URL.revokeObjectURL to prevent potential issues with React rendering cycles
+    setPdfPreviewUrl(null);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
+    addLog("Reset visuale completato. I dati del progetto sono stati mantenuti.");
+    
+    // Force a reload to ensure a clean state
+    window.location.reload();
+  };
+
+  const handleCreateProject = async (name: string, type: ProductionType, startDate: string, endDate: string, shootDays: string[]) => {
     // 1. Create the project
-    const newProject = await db.createProject(name, type, startDate, endDate);
+    const newProject = await db.createProject(name, type, startDate, endDate, shootDays);
     
     // 2. Set as current project
     localStorage.setItem('currentProjectId', newProject.id);
@@ -133,29 +141,44 @@ export const ScriptImport: React.FC = () => {
   // The manual creation banner must be fixed and never deletable.
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Prevent default behavior just in case
+    e.preventDefault();
+    
+    // Use a local variable to capture the file immediately
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== 'application/pdf') {
-      setError("Il file deve essere un PDF.");
-      setImportState('error');
-      return;
-    }
+    // Wrap in setTimeout to allow the browser to finish its native file picker handling
+    // and prevent UI blocking or race conditions on mobile devices
+    setTimeout(() => {
+      try {
+        if (file.type !== 'application/pdf') {
+          setError("Il file deve essere un PDF.");
+          setImportState('error');
+          return;
+        }
 
-    if (projectId) {
-      db.clearAnalysisResult(projectId);
-    }
+        // Defer clearing analysis result to startAnalysis to avoid heavy ops during file selection
+        // if (projectId) {
+        //   db.clearAnalysisResult(projectId).catch(err => console.error("Failed to clear analysis result", err));
+        // }
 
-    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
-    
-    setSelectedFile(file);
-    setPdfPreviewUrl(URL.createObjectURL(file));
-    setImportState('selected');
-    setError(null);
-    setSummary(null);
-    setPreviewData(null);
-    setModelUsed(undefined);
-    addLog(`File selezionato: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+        // Removed URL.revokeObjectURL to prevent potential issues with React rendering cycles
+        
+        setSelectedFile(file);
+        // setPdfPreviewUrl(URL.createObjectURL(file)); // Disabled to prevent potential crashes on mobile
+        setImportState('selected');
+        setError(null);
+        setSummary(null);
+        setPreviewData(null);
+        setModelUsed(undefined);
+        addLog(`File selezionato: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+      } catch (err: any) {
+        console.error("Error handling file selection:", err);
+        setError("Errore durante la selezione del file. Riprova.");
+        setImportState('error');
+      }
+    }, 100);
   };
 
   const checkServerEnv = async () => {
@@ -173,6 +196,11 @@ export const ScriptImport: React.FC = () => {
     setIsDetailsOpen(false);
 
     try {
+      // Clear previous results now that we are starting a new analysis
+      if (projectId) {
+         await db.clearAnalysisResult(projectId);
+      }
+
       addLog("Conversione file in corso...");
       
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -238,9 +266,24 @@ export const ScriptImport: React.FC = () => {
     });
     await db.saveElements(targetProjectId, elements);
 
-    const scenes: Scene[] = (data.scenes || []).map((s: any) => {
+    // Get project to check for shootDays
+    const projects = await db.getProjects();
+    const project = projects.find(p => p.id === targetProjectId);
+    const shootDays = project?.shootDays || [];
+    const scenesPerDay = shootDays.length > 0 ? Math.ceil((data.scenes || []).length / shootDays.length) : 0;
+
+    const scenes: Scene[] = (data.scenes || []).map((s: any, index: number) => {
       const elementNames = data.sceneElements?.[s.sceneNumber] || [];
       const elementIds = elementNames.map((name: string) => elementsMap[name]?.id).filter((id: any) => !!id) as string[];
+
+      // Distribute scenes to days if shootDays exist
+      let assignedDay = undefined;
+      if (shootDays.length > 0) {
+          const dayIndex = Math.floor(index / scenesPerDay);
+          if (dayIndex < shootDays.length) {
+              assignedDay = shootDays[dayIndex];
+          }
+      }
 
       return {
         id: crypto.randomUUID(),
@@ -254,7 +297,8 @@ export const ScriptImport: React.FC = () => {
         pageCountInEighths: s.pageCountInEighths || '0 1/8',
         pages: parseEighthsToFloat(s.pageCountInEighths || '0 1/8'),
         synopsis: s.synopsis || '',
-        elementIds
+        elementIds,
+        shootDay: assignedDay
       };
     });
 
@@ -391,6 +435,16 @@ export const ScriptImport: React.FC = () => {
             onCreate={handleCreateProject}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showResetModal}
+        title="Resettare la pagina?"
+        message="Verranno rimossi solo i dati visualizzati in questa pagina. Il Piano di Lavorazione salvato NON verrà cancellato."
+        onConfirm={confirmReset}
+        onCancel={() => setShowResetModal(false)}
+        confirmText="Reset"
+        cancelText="Annulla"
+      />
     </div>
   );
 };

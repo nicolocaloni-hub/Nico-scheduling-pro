@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
-import { Stripboard, Scene, Project } from '../types';
+import { Stripboard, Scene, Project, ProductionElement } from '../types';
 import { Button } from '../components/Button';
 import { PlanAccordionItem } from '../components/PlanAccordionItem';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -11,6 +11,7 @@ export const StripboardView: React.FC = () => {
     const navigate = useNavigate();
     const [boards, setBoards] = useState<Stripboard[]>([]);
     const [scenes, setScenes] = useState<Record<string, Scene>>({});
+    const [elements, setElements] = useState<ProductionElement[]>([]);
     const [loading, setLoading] = useState(true);
     const [openBoardId, setOpenBoardId] = useState<string | null>(null);
     const [project, setProject] = useState<Project | null>(null);
@@ -25,10 +26,11 @@ export const StripboardView: React.FC = () => {
         if (!pid) return navigate('/');
 
         try {
-            const [fetchedBoards, projectScenes, projects] = await Promise.all([
+            const [fetchedBoards, projectScenes, projects, projectElements] = await Promise.all([
                 db.getStripboards(pid),
                 db.getProjectScenes(pid),
-                db.getProjects()
+                db.getProjects(),
+                db.getElements(pid)
             ]);
             
             const currentProject = projects.find(p => p.id === pid) || null;
@@ -38,6 +40,7 @@ export const StripboardView: React.FC = () => {
             projectScenes.forEach(s => sceneMap[s.id] = s);
             setScenes(sceneMap);
             setBoards(fetchedBoards);
+            setElements(projectElements);
         } catch (error) {
             console.error("Failed to load data", error);
         } finally {
@@ -47,6 +50,13 @@ export const StripboardView: React.FC = () => {
 
     const handleBoardUpdate = (updatedBoard: Stripboard) => {
         setBoards(prev => prev.map(b => b.id === updatedBoard.id ? updatedBoard : b));
+    };
+
+    const handleSceneUpdate = (updatedScene: Scene) => {
+        setScenes(prev => ({
+            ...prev,
+            [updatedScene.id]: updatedScene
+        }));
     };
 
     const handleDeleteRequest = (boardId: string) => {
@@ -108,11 +118,14 @@ export const StripboardView: React.FC = () => {
                         key={board.id}
                         board={board}
                         scenes={scenes}
+                        elements={elements}
                         isOpen={openBoardId === board.id}
                         onToggle={() => setOpenBoardId(openBoardId === board.id ? null : board.id)}
                         onUpdate={handleBoardUpdate}
+                        onSceneUpdate={handleSceneUpdate}
                         onDelete={() => handleDeleteRequest(board.id)}
                         projectName={project?.name}
+                        project={project || undefined}
                     />
                 ))}
             </div>

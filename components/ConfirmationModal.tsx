@@ -6,6 +6,8 @@ interface ConfirmationModalProps {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  confirmText?: string;
+  cancelText?: string;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -13,7 +15,9 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   title,
   message,
   onConfirm,
-  onCancel
+  onCancel,
+  confirmText = "Cancella",
+  cancelText = "Annulla"
 }) => {
   if (!isOpen) return null;
 
@@ -35,13 +39,13 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               onClick={onCancel}
               className="px-4 py-3 rounded-xl font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
-              Annulla
+              {cancelText}
             </button>
             <button
               onClick={onConfirm}
               className="px-4 py-3 rounded-xl font-black text-white bg-red-600 hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 uppercase tracking-wider text-xs flex items-center justify-center gap-2 active:scale-95"
             >
-              <i className="fa-solid fa-trash"></i> Cancella
+              <i className="fa-solid fa-trash"></i> {confirmText}
             </button>
           </div>
         </div>

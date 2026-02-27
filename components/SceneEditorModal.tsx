@@ -1,21 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Scene, IntExt, DayNight } from '../types';
+import { Scene, IntExt, DayNight, ProductionElement, ElementCategory } from '../types';
 import { Button } from './Button';
 import { useTranslation } from '../services/i18n';
 
 interface SceneEditorModalProps {
   scene: Scene;
+  elements?: ProductionElement[];
   onClose: () => void;
   onSave: (updatedScene: Scene) => void;
 }
 
-export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, onClose, onSave }) => {
+export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, elements = [], onClose, onSave }) => {
   const [data, setData] = useState<Scene>({ ...scene });
   const { t } = useTranslation();
 
   const handleChange = (field: keyof Scene, value: any) => {
     setData(prev => ({ ...prev, [field]: value }));
   };
+
+  const toggleElement = (elementId: string) => {
+    setData(prev => {
+        const currentIds = prev.elementIds || [];
+        if (currentIds.includes(elementId)) {
+            return { ...prev, elementIds: currentIds.filter(id => id !== elementId) };
+        } else {
+            return { ...prev, elementIds: [...currentIds, elementId] };
+        }
+    });
+  };
+
+  const castMembers = elements.filter(e => e.category === ElementCategory.Cast);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -87,6 +101,28 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, onClo
               className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white text-sm h-24"
             />
           </div>
+
+          {castMembers.length > 0 && (
+            <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Cast</label>
+                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
+                    {castMembers.map(member => (
+                        <div key={member.id} className="flex items-center gap-2 py-1">
+                            <input 
+                                type="checkbox" 
+                                id={`cast-${member.id}`}
+                                checked={(data.elementIds || []).includes(member.id)}
+                                onChange={() => toggleElement(member.id)}
+                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <label htmlFor={`cast-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
+                                {member.name}
+                            </label>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 mt-6">

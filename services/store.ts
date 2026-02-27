@@ -38,7 +38,12 @@ const loadState = (): DBState => {
 };
 
 const saveState = (state: DBState) => {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error("Failed to save state (Quota Exceeded?)", e);
+    // Optional: Alert user or handle gracefully
+  }
 };
 
 export const db = {
@@ -47,7 +52,7 @@ export const db = {
     return state.projects;
   },
 
-  createProject: async (name: string, type: ProductionType, startDate?: string, endDate?: string): Promise<Project> => {
+  createProject: async (name: string, type: ProductionType, startDate?: string, endDate?: string, shootDays?: string[]): Promise<Project> => {
     const state = loadState();
     const newProject: Project = {
       id: crypto.randomUUID(),
@@ -57,7 +62,8 @@ export const db = {
       startDate: startDate || new Date().toISOString(),
       endDate,
       totalPages: 0,
-      totalScenes: 0
+      totalScenes: 0,
+      shootDays
     };
     state.projects.push(newProject);
     saveState(state);
@@ -278,5 +284,28 @@ export const db = {
     const state = loadState();
     const hidden = state.analysisResults?.['global']?.hiddenBanners || [];
     return hidden.includes(bannerId);
+  },
+
+  resetProjectScriptData: async (projectId: string): Promise<void> => {
+    const state = loadState();
+    // Clear scenes
+    delete state.scenes[projectId];
+    // Clear elements
+    delete state.elements[projectId];
+    // Clear stripboards (since they depend on scenes)
+    delete state.stripboards[projectId];
+    // Clear script versions (PDFs)
+    delete state.scripts[projectId];
+    // Clear analysis results
+    if (state.analysisResults) delete state.analysisResults[projectId];
+    
+    // Reset project counters
+    const project = state.projects.find(p => p.id === projectId);
+    if (project) {
+        project.totalScenes = 0;
+        project.totalPages = 0;
+    }
+    
+    saveState(state);
   }
 };
