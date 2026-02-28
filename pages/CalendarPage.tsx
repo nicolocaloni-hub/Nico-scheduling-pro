@@ -17,7 +17,7 @@ export const CalendarPage: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) navigate('/'); else {
+    if (!pid) navigate('/projects'); else {
       setProjectId(pid);
       loadData(pid);
     }

@@ -33,7 +33,7 @@ export const ManualStripboardCreate: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) return navigate('/');
+    if (!pid) return navigate('/projects');
     setProjectId(pid);
     loadElements(pid);
     loadDraft(pid);

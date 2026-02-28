@@ -9,7 +9,7 @@ export const CharactersPage: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) return navigate('/');
+    if (!pid) return navigate('/projects');
     
     db.getElements(pid).then(elements => {
       const chars = elements.filter(e => e.category === ElementCategory.Cast || (e.category as string) === 'character'); // Handle both enum and string case from AI

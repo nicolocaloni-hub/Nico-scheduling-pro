@@ -35,7 +35,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, []);
 
   const navItems = [
-    { label: t('nav_projects'), path: '/', icon: (
+    { label: t('nav_projects'), path: '/projects', icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
     )},
     { label: t('nav_script'), path: '/script', icon: (
@@ -59,7 +59,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Desktop Side Nav */}
       <nav className="hidden md:flex flex-col fixed left-0 top-0 h-full w-20 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 z-50 transition-colors duration-300">
         <div className="flex-1 flex flex-col items-center py-6 gap-8">
-           <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center font-bold text-xl text-white">N</div>
+           <button onClick={() => navigate('/')} className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center font-bold text-xl text-white hover:bg-primary-700 transition-colors">N</button>
            {navItems.map((item) => (
              <button
                key={item.path}

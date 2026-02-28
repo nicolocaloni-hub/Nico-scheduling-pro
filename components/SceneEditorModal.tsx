@@ -3,18 +3,20 @@ import { Scene, IntExt, DayNight, ProductionElement, ElementCategory } from '../
 import { Button } from './Button';
 import { useTranslation } from '../services/i18n';
 import { db } from '../services/store';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 interface SceneEditorModalProps {
   scene: Scene;
   elements?: ProductionElement[];
   onClose: () => void;
   onSave: (updatedScene: Scene) => void;
+  onDeleteElement?: (elementId: string) => void;
 }
 
-export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, elements = [], onClose, onSave }) => {
+export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, elements = [], onClose, onSave, onDeleteElement }) => {
   const [data, setData] = useState<Scene>({ ...scene });
   const [tempElements, setTempElements] = useState<ProductionElement[]>([]);
+  const [elementToDelete, setElementToDelete] = useState<ProductionElement | null>(null);
   const { t } = useTranslation();
 
   const handleChange = (field: keyof Scene, value: any) => {
@@ -49,6 +51,17 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
 
   const handleTempElementChange = (id: string, newName: string) => {
     setTempElements(prev => prev.map(el => el.id === id ? { ...el, name: newName } : el));
+  };
+
+  const handleDeleteClick = (element: ProductionElement) => {
+    setElementToDelete(element);
+  };
+
+  const confirmDeleteElement = () => {
+    if (elementToDelete && onDeleteElement) {
+        onDeleteElement(elementToDelete.id);
+        setElementToDelete(null);
+    }
   };
 
   const handleSaveWrapper = async () => {
@@ -106,7 +119,7 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div 
-        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition-colors duration-300"
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition-colors duration-300 relative"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('edit_scene_title')} {data.sceneNumber}</h3>
@@ -177,28 +190,37 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
 
           <div>
             <div className="flex items-center gap-2 mb-1">
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Cast</label>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase leading-none">Cast</label>
                 <button 
                     onClick={() => handleAddTempElement(ElementCategory.Cast)}
-                    className="w-5 h-5 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                    className="w-4 h-4 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
                     title="Aggiungi Cast"
                 >
-                    <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                    <Plus className="w-3 h-3" strokeWidth={3} />
                 </button>
             </div>
             <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
                 {castMembers.map(member => (
-                    <div key={member.id} className="flex items-center gap-2 py-1">
-                        <input 
-                            type="checkbox" 
-                            id={`cast-${member.id}`}
-                            checked={(data.elementIds || []).includes(member.id)}
-                            onChange={() => toggleElement(member.id)}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                        />
-                        <label htmlFor={`cast-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
-                            {member.name}
-                        </label>
+                    <div key={member.id} className="flex items-center gap-2 py-1 group justify-between">
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="checkbox" 
+                                id={`cast-${member.id}`}
+                                checked={(data.elementIds || []).includes(member.id)}
+                                onChange={() => toggleElement(member.id)}
+                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <label htmlFor={`cast-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
+                                {member.name}
+                            </label>
+                        </div>
+                        <button 
+                            onClick={() => handleDeleteClick(member)}
+                            className="text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                            title="Elimina personaggio"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                     </div>
                 ))}
                 {tempCast.map(member => (
@@ -228,28 +250,37 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
 
           <div>
             <div className="flex items-center gap-2 mb-1">
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Props</label>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase leading-none">Props</label>
                 <button 
                     onClick={() => handleAddTempElement(ElementCategory.Props)}
-                    className="w-5 h-5 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                    className="w-4 h-4 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
                     title="Aggiungi Prop"
                 >
-                    <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                    <Plus className="w-3 h-3" strokeWidth={3} />
                 </button>
             </div>
             <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
                 {propsElements.map(member => (
-                    <div key={member.id} className="flex items-center gap-2 py-1">
-                        <input 
-                            type="checkbox" 
-                            id={`prop-${member.id}`}
-                            checked={(data.elementIds || []).includes(member.id)}
-                            onChange={() => toggleElement(member.id)}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                        />
-                        <label htmlFor={`prop-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
-                            {member.name}
-                        </label>
+                    <div key={member.id} className="flex items-center gap-2 py-1 group justify-between">
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="checkbox" 
+                                id={`prop-${member.id}`}
+                                checked={(data.elementIds || []).includes(member.id)}
+                                onChange={() => toggleElement(member.id)}
+                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <label htmlFor={`prop-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
+                                {member.name}
+                            </label>
+                        </div>
+                        <button 
+                            onClick={() => handleDeleteClick(member)}
+                            className="text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                            title="Elimina prop"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                     </div>
                 ))}
                 {tempProps.map(member => (
@@ -282,6 +313,34 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
           <Button variant="secondary" onClick={onClose} className="flex-1">{t('cancel')}</Button>
           <Button onClick={handleSaveWrapper} className="flex-1">{t('save')}</Button>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {elementToDelete && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 text-center">
+                        Elimina {elementToDelete.category === ElementCategory.Cast ? 'Personaggio' : 'Prop'}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
+                        Sei sicuro di voler eliminare <span className="font-bold text-gray-900 dark:text-white">{elementToDelete.name}</span>?
+                    </p>
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => setElementToDelete(null)}
+                            className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        >
+                            Annulla
+                        </button>
+                        <button 
+                            onClick={confirmDeleteElement}
+                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                        >
+                            Elimina
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
     </div>
   );

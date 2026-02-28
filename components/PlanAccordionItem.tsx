@@ -18,6 +18,7 @@ interface PlanAccordionItemProps {
   onUpdate: (updatedBoard: Stripboard) => void;
   onSceneUpdate?: (updatedScene: Scene) => void;
   onDelete: () => void;
+  onElementDeleted?: (elementId: string) => void;
   projectName?: string;
   project?: any;
 }
@@ -31,6 +32,7 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
   onUpdate,
   onSceneUpdate,
   onDelete,
+  onElementDeleted,
   projectName,
   project
 }) => {
@@ -510,6 +512,7 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
           elements={elements}
           onClose={() => setEditingScene(null)} 
           onSave={handleSceneSave} 
+          onDeleteElement={onElementDeleted}
         />
       )}
 

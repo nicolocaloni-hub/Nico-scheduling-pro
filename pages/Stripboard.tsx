@@ -23,7 +23,7 @@ export const StripboardView: React.FC = () => {
 
     const loadData = async () => {
         const pid = localStorage.getItem('currentProjectId');
-        if (!pid) return navigate('/');
+        if (!pid) return navigate('/projects');
 
         try {
             const [fetchedBoards, projectScenes, projects, projectElements] = await Promise.all([
@@ -61,6 +61,32 @@ export const StripboardView: React.FC = () => {
 
     const handleDeleteRequest = (boardId: string) => {
         setBoardToDelete(boardId);
+    };
+
+    const handleElementDeleted = async (elementId: string) => {
+        const pid = localStorage.getItem('currentProjectId');
+        if (!pid) return;
+
+        // Delete from DB
+        await db.deleteElement(pid, elementId);
+
+        // Update local state
+        setElements(prev => prev.filter(e => e.id !== elementId));
+        
+        // Update local scenes state
+        setScenes(prev => {
+            const newScenes = { ...prev };
+            Object.keys(newScenes).forEach(key => {
+                const s = newScenes[key];
+                if (s.elementIds && s.elementIds.includes(elementId)) {
+                    newScenes[key] = {
+                        ...s,
+                        elementIds: s.elementIds.filter(id => id !== elementId)
+                    };
+                }
+            });
+            return newScenes;
+        });
     };
 
     const confirmDelete = async () => {
@@ -124,6 +150,7 @@ export const StripboardView: React.FC = () => {
                         onUpdate={handleBoardUpdate}
                         onSceneUpdate={handleSceneUpdate}
                         onDelete={() => handleDeleteRequest(board.id)}
+                        onElementDeleted={handleElementDeleted}
                         projectName={project?.name}
                         project={project || undefined}
                     />

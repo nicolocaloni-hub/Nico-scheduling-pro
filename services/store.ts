@@ -186,6 +186,21 @@ export const db = {
     return state.elements[projectId] || [];
   },
 
+  deleteElement: async (projectId: string, elementId: string): Promise<void> => {
+    const state = loadState();
+    if (state.elements[projectId]) {
+      state.elements[projectId] = state.elements[projectId].filter(e => e.id !== elementId);
+      // Also remove this elementId from all scenes in the project
+      if (state.scenes[projectId]) {
+        state.scenes[projectId] = state.scenes[projectId].map(scene => ({
+          ...scene,
+          elementIds: (scene.elementIds || []).filter(id => id !== elementId)
+        }));
+      }
+      saveState(state);
+    }
+  },
+
   saveScriptVersion: async (version: ScriptVersion): Promise<void> => {
     const state = loadState();
     if (!state.scripts[version.projectId]) state.scripts[version.projectId] = [];

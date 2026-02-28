@@ -61,6 +61,13 @@ export const Dashboard: React.FC = () => {
       {/* Header Centrato con Settings a Sinistra e Nuovo a Destra */}
       <header className="flex items-center justify-center py-4 gap-4">
         <button 
+            onClick={() => navigate('/')}
+            className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            title="Torna alla Suite"
+        >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+        </button>
+        <button 
             onClick={() => setShowSettings(!showSettings)}
             className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
         >

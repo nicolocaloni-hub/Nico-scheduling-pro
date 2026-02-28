@@ -12,12 +12,17 @@ import { CharactersPage } from './pages/CharactersPage';
 import { LocationsPage } from './pages/LocationsPage';
 import { PropsPage } from './pages/PropsPage';
 import { ManualStripboardCreate } from './pages/ManualStripboardCreate';
+import { LandingPage } from './pages/LandingPage';
+import { ODGPage } from './pages/ODGPage';
 
 const App: React.FC = () => {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/" element={<Layout><Dashboard /></Layout>} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/projects" element={<Layout><Dashboard /></Layout>} />
+        <Route path="/odg" element={<Layout><ODGPage /></Layout>} />
+        
         <Route path="/script" element={<Layout><ScriptImport /></Layout>} />
         <Route path="/stripboard" element={<Layout><StripboardView /></Layout>} />
         <Route path="/stripboard/manual/create" element={<Layout><ManualStripboardCreate /></Layout>} />
