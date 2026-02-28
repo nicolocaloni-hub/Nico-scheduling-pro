@@ -12,7 +12,7 @@ export const CharactersPage: React.FC = () => {
     if (!pid) return navigate('/');
     
     db.getElements(pid).then(elements => {
-      const chars = elements.filter(e => e.category === ElementCategory.Cast || e.category === 'character'); // Handle both enum and string case from AI
+      const chars = elements.filter(e => e.category === ElementCategory.Cast || (e.category as string) === 'character'); // Handle both enum and string case from AI
       // Sort alphabetically
       chars.sort((a, b) => a.name.localeCompare(b.name));
       setCharacters(chars);

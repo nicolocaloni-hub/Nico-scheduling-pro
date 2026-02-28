@@ -25,11 +25,15 @@ export const PropsPage: React.FC = () => {
 
   const loadProps = async (pid: string) => {
     const elements = await db.getElements(pid);
-    const props = elements.filter(e => 
-      e.category === ElementCategory.Props || 
-      e.category === 'prop' || 
-      e.category === 'props'
-    );
+    const props = elements.filter(e => {
+      const cat = (e.category || '').toLowerCase();
+      return (
+        cat === ElementCategory.Props.toLowerCase() || 
+        cat.includes('prop') || 
+        cat.includes('oggett') || 
+        cat.includes('attrezz')
+      );
+    });
     props.sort((a, b) => a.name.localeCompare(b.name));
     setPropsList(props);
 

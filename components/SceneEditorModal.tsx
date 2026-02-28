@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Scene, IntExt, DayNight, ProductionElement, ElementCategory } from '../types';
 import { Button } from './Button';
 import { useTranslation } from '../services/i18n';
+import { db } from '../services/store';
+import { Plus } from 'lucide-react';
 
 interface SceneEditorModalProps {
   scene: Scene;
@@ -12,6 +14,7 @@ interface SceneEditorModalProps {
 
 export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, elements = [], onClose, onSave }) => {
   const [data, setData] = useState<Scene>({ ...scene });
+  const [tempElements, setTempElements] = useState<ProductionElement[]>([]);
   const { t } = useTranslation();
 
   const handleChange = (field: keyof Scene, value: any) => {
@@ -29,7 +32,76 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
     });
   };
 
-  const castMembers = elements.filter(e => e.category === ElementCategory.Cast);
+  const handleAddTempElement = (category: ElementCategory) => {
+    const newEl: ProductionElement = {
+        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        projectId: scene.projectId,
+        name: '',
+        category: category
+    };
+    setTempElements(prev => [...prev, newEl]);
+    // Auto-check the new element
+    setData(prev => ({
+        ...prev,
+        elementIds: [...(prev.elementIds || []), newEl.id]
+    }));
+  };
+
+  const handleTempElementChange = (id: string, newName: string) => {
+    setTempElements(prev => prev.map(el => el.id === id ? { ...el, name: newName } : el));
+  };
+
+  const handleSaveWrapper = async () => {
+      // 1. Filter valid new elements
+      const validNewElements = tempElements.filter(el => el.name.trim() !== '');
+      
+      let finalElementIds = [...(data.elementIds || [])];
+
+      if (validNewElements.length > 0) {
+          // 2. Create real elements
+          const realElements = validNewElements.map(el => ({
+              ...el,
+              id: crypto.randomUUID() // Create real ID
+          }));
+
+          // 3. Save to DB
+          const currentElements = await db.getElements(scene.projectId);
+          await db.saveElements(scene.projectId, [...currentElements, ...realElements]);
+
+          // 4. Update scene elementIds
+          finalElementIds = finalElementIds.map(id => {
+              const tempEl = validNewElements.find(t => t.id === id);
+              if (tempEl) {
+                  // Find corresponding real element
+                  const realEl = realElements.find(r => r.name === tempEl.name && r.category === tempEl.category);
+                  return realEl ? realEl.id : id;
+              }
+              return id;
+          });
+      }
+      
+      // Remove any remaining temp IDs (e.g. empty name ones or unchecked ones that were not saved)
+      finalElementIds = finalElementIds.filter(id => !id.startsWith('temp-'));
+
+      const finalData = { ...data, elementIds: finalElementIds };
+      onSave(finalData);
+  };
+
+  const castMembers = elements.filter(e => e.category === ElementCategory.Cast || (e.category || '').toLowerCase() === 'character');
+  
+  const propsElements = elements.filter(e => {
+    const cat = (e.category || '').toLowerCase();
+    return (
+      cat === 'props' || 
+      cat === 'prop' || 
+      cat.includes('oggetti') || 
+      cat.includes('attrezzeria') || 
+      e.category === ElementCategory.Props
+    );
+  });
+
+  const tempCast = tempElements.filter(e => e.category === ElementCategory.Cast);
+  const tempProps = tempElements.filter(e => e.category === ElementCategory.Props);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -40,6 +112,7 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('edit_scene_title')} {data.sceneNumber}</h3>
         
         <div className="space-y-4">
+          {/* ... existing fields ... */}
           <div>
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">{t('slugline')}</label>
             <div className="grid grid-cols-3 gap-2">
@@ -102,32 +175,112 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
             />
           </div>
 
-          {castMembers.length > 0 && (
-            <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Cast</label>
-                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
-                    {castMembers.map(member => (
-                        <div key={member.id} className="flex items-center gap-2 py-1">
-                            <input 
-                                type="checkbox" 
-                                id={`cast-${member.id}`}
-                                checked={(data.elementIds || []).includes(member.id)}
-                                onChange={() => toggleElement(member.id)}
-                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                            />
-                            <label htmlFor={`cast-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
-                                {member.name}
-                            </label>
-                        </div>
-                    ))}
-                </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Cast</label>
+                <button 
+                    onClick={() => handleAddTempElement(ElementCategory.Cast)}
+                    className="w-5 h-5 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                    title="Aggiungi Cast"
+                >
+                    <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                </button>
             </div>
-          )}
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
+                {castMembers.map(member => (
+                    <div key={member.id} className="flex items-center gap-2 py-1">
+                        <input 
+                            type="checkbox" 
+                            id={`cast-${member.id}`}
+                            checked={(data.elementIds || []).includes(member.id)}
+                            onChange={() => toggleElement(member.id)}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <label htmlFor={`cast-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
+                            {member.name}
+                        </label>
+                    </div>
+                ))}
+                {tempCast.map(member => (
+                    <div key={member.id} className="flex items-center gap-2 py-1 animate-in fade-in slide-in-from-left-2">
+                        <input 
+                            type="checkbox" 
+                            id={`cast-${member.id}`}
+                            checked={(data.elementIds || []).includes(member.id)}
+                            onChange={() => toggleElement(member.id)}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <input 
+                            type="text"
+                            value={member.name}
+                            onChange={(e) => handleTempElementChange(member.id, e.target.value)}
+                            className="flex-1 text-sm border-b border-gray-300 dark:border-gray-600 focus:border-primary-500 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400"
+                            placeholder="Nome personaggio..."
+                            autoFocus
+                        />
+                    </div>
+                ))}
+                {castMembers.length === 0 && tempCast.length === 0 && (
+                    <div className="text-xs text-gray-400 italic text-center py-2">Nessun membro del cast</div>
+                )}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Props</label>
+                <button 
+                    onClick={() => handleAddTempElement(ElementCategory.Props)}
+                    className="w-5 h-5 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                    title="Aggiungi Prop"
+                >
+                    <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                </button>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
+                {propsElements.map(member => (
+                    <div key={member.id} className="flex items-center gap-2 py-1">
+                        <input 
+                            type="checkbox" 
+                            id={`prop-${member.id}`}
+                            checked={(data.elementIds || []).includes(member.id)}
+                            onChange={() => toggleElement(member.id)}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <label htmlFor={`prop-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
+                            {member.name}
+                        </label>
+                    </div>
+                ))}
+                {tempProps.map(member => (
+                    <div key={member.id} className="flex items-center gap-2 py-1 animate-in fade-in slide-in-from-left-2">
+                        <input 
+                            type="checkbox" 
+                            id={`prop-${member.id}`}
+                            checked={(data.elementIds || []).includes(member.id)}
+                            onChange={() => toggleElement(member.id)}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <input 
+                            type="text"
+                            value={member.name}
+                            onChange={(e) => handleTempElementChange(member.id, e.target.value)}
+                            className="flex-1 text-sm border-b border-gray-300 dark:border-gray-600 focus:border-primary-500 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400"
+                            placeholder="Nome oggetto..."
+                            autoFocus
+                        />
+                    </div>
+                ))}
+                {propsElements.length === 0 && tempProps.length === 0 && (
+                    <div className="text-xs text-gray-400 italic text-center py-2">Nessun prop</div>
+                )}
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-3 mt-6">
           <Button variant="secondary" onClick={onClose} className="flex-1">{t('cancel')}</Button>
-          <Button onClick={() => onSave(data)} className="flex-1">{t('save')}</Button>
+          <Button onClick={handleSaveWrapper} className="flex-1">{t('save')}</Button>
         </div>
       </div>
     </div>

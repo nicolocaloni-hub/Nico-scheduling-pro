@@ -73,8 +73,17 @@ export const ManualStripboardCreate: React.FC = () => {
 
   const loadElements = async (pid: string) => {
     const elements = await db.getElements(pid);
-    setAvailableCast(elements.filter(e => e.category === ElementCategory.Cast || e.category === 'character'));
-    setAvailableProps(elements.filter(e => e.category === ElementCategory.Props || e.category === 'prop'));
+    setAvailableCast(elements.filter(e => e.category === ElementCategory.Cast || (e.category as string) === 'character'));
+    setAvailableProps(elements.filter(e => {
+      const cat = (e.category || '').toLowerCase();
+      return (
+        cat === 'props' || 
+        cat === 'prop' || 
+        cat.includes('oggetti') || 
+        cat.includes('attrezzeria') || 
+        e.category === ElementCategory.Props
+      );
+    }));
   };
 
   const handleAddElement = async (type: 'cast' | 'prop', name: string) => {

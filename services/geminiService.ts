@@ -44,7 +44,9 @@ Il tuo compito è analizzare la sceneggiatura PDF fornita e produrre un breakdow
 2. **Estrazione Elementi (CRITICO)**: Devi identificare TUTTI gli elementi produttivi menzionati nel testo, categorizzandoli accuratamente. Non limitarti al Cast. Cerca attivamente:
    - **Cast**: Personaggi parlanti (nomi in maiuscolo al centro).
    - **Comparse (Extras)**: Gruppi di persone, folla, passanti.
-   - **Oggetti di Scena (Props)**: Oggetti manipolati dai personaggi (es. "pistola", "telefono", "bicchiere", "chiavi").
+   - **Oggetti di Scena (Props)**: Oggetti manipolati dai personaggi o essenziali per la scena. NON ignorare oggetti comuni se sono menzionati specificamente.
+     Esempi da cercare: "scatoloni", "sigarette", "mazzo di carte", "bicchiere rotto", "libro", "telefono", "chiavi", "pistola".
+     IMPORTANTE: Se la descrizione dice "la camera è vuota, rimangono solo gli scatoloni", ALLORA "scatoloni" È UN PROP e DEVE essere listato.
    - **Costumi**: Descrizioni specifiche di abbigliamento (es. "giacca di pelle", "divisa da poliziotto", "vestito rosso").
    - **Arredamento (Set Dressing)**: Mobili, quadri, lampade e oggetti di fondo che definiscono l'ambiente.
    - **Veicoli**: Auto, moto, bici, treni menzionati.
@@ -54,7 +56,7 @@ Il tuo compito è analizzare la sceneggiatura PDF fornita e produrre un breakdow
    - **Animali**: Cani, gatti, cavalli, etc.
    - **Suono**: Rumori specifici indicati nel testo (es. "suono di sirena", "battito cardiaco").
 
-Sii meticoloso. Se un oggetto è importante per l'azione, DEVE essere listato.`;
+Sii meticoloso. Se un oggetto è importante per l'azione o menzionato nella descrizione, DEVE essere listato come elemento. Usa la categoria "Props" per gli oggetti di scena.`;
 
   const responseSchema = {
     type: Type.OBJECT,
@@ -100,7 +102,7 @@ Sii meticoloso. Se un oggetto è importante per l'azione, DEVE essere listato.`;
       contents: {
         parts: [
           { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
-          { text: "Analizza questo copione. Esegui uno spoglio completo. Per ogni scena, elenca tutti gli elementi necessari alla produzione (Props, Costumi, Veicoli, etc.) oltre al Cast. Sii molto dettagliato nell'identificazione degli oggetti di scena." }
+          { text: "Analizza questo copione. Esegui uno spoglio completo. Per ogni scena, elenca tutti gli elementi necessari alla produzione (Props, Costumi, Veicoli, etc.) oltre al Cast. Sii OSSESSIVO nell'identificazione degli oggetti di scena (Props). Se un oggetto è menzionato nella descrizione (es. 'scatoloni', 'sigaretta', 'telefono'), DEVI estrarlo come Prop." }
         ]
       },
       config: {
@@ -117,7 +119,10 @@ Sii meticoloso. Se un oggetto è importante per l'azione, DEVE essere listato.`;
       sceneCount: data.scenes?.length || 0,
       locationCount: new Set(data.scenes?.map((s: any) => s.locationName)).size,
       castCount: data.elements?.filter((e: any) => e.category === 'Cast').length || 0,
-      propsCount: data.elements?.filter((e: any) => (e.category || '').toLowerCase().includes('prop')).length || 0,
+      propsCount: data.elements?.filter((e: any) => {
+        const cat = (e.category || '').toLowerCase();
+        return cat.includes('prop') || cat.includes('oggetti') || cat.includes('attrezzeria');
+      }).length || 0,
     };
 
     if (onDebugInfo) {

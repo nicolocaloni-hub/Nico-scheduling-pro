@@ -12,22 +12,8 @@ export const LocationsPage: React.FC = () => {
     if (!pid) return navigate('/');
     
     db.getElements(pid).then(elements => {
-      const locs = elements.filter(e => e.category === ElementCategory.Greenery || e.category === 'location' || e.category === 'set'); 
-      // Note: 'location' category might come from AI as string 'location' or mapped to something else.
-      // Based on previous files, AI returns 'category' string. 
-      // Let's filter by what we usually see for locations.
-      // Actually, in ScriptImport, we map AI result to elements. 
-      // Let's check all elements and filter loosely or check if there's a specific category.
-      // In `types.ts`, ElementCategory doesn't have "Location". It has Greenery? 
-      // Wait, `Scene` has `locationName`. 
-      // But `ProductionElement` has categories like Props, Cast. 
-      // Usually Locations are derived from Scenes, not Elements list?
-      // Let's check `ScriptImport.tsx`: 
-      // `const elements: ProductionElement[] = (data.elements || []).map...`
-      // AI returns elements with category.
-      // If AI returns "location" category, it's stored.
-      // Let's filter by category 'location' (lowercase) or similar.
-      const filtered = elements.filter(e => e.category.toLowerCase() === 'location' || e.category.toLowerCase() === 'set');
+      // Filter by category 'location' (lowercase) or similar.
+      const filtered = elements.filter(e => (e.category || '').toLowerCase() === 'location' || (e.category || '').toLowerCase() === 'set');
       filtered.sort((a, b) => a.name.localeCompare(b.name));
       setLocations(filtered);
     });

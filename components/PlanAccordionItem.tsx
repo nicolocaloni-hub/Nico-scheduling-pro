@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Stripboard, Scene, Strip, ElementCategory } from '../types';
+import { Stripboard, Scene, Strip, ElementCategory, ProductionElement } from '../types';
 import { db } from '../services/store';
 import { SceneEditorModal } from './SceneEditorModal';
 import { PrintSetupModal } from './PrintSetupModal';
@@ -12,6 +12,7 @@ import { AddDayModal } from './AddDayModal';
 interface PlanAccordionItemProps {
   board: Stripboard;
   scenes: Record<string, Scene>;
+  elements?: ProductionElement[];
   isOpen: boolean;
   onToggle: () => void;
   onUpdate: (updatedBoard: Stripboard) => void;
@@ -23,7 +24,8 @@ interface PlanAccordionItemProps {
 
 export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({ 
   board, 
-  scenes, 
+  scenes,
+  elements = [],
   isOpen, 
   onToggle,
   onUpdate,
@@ -139,7 +141,7 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
       const s = scenes[strip.sceneId];
       if (!s) return;
 
-      const dayLabel = s.shootDay ? new Date(s.shootDay).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'NON PROGRAMMATO';
+      const dayLabel = s.shootDay ? new Date(s.shootDay).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : (projectName || 'NON PROGRAMMATO');
       
       if (dayLabel !== currentDayLabel) {
         rows.push([{ content: dayLabel.toUpperCase(), colSpan: 6, styles: { fillColor: [200, 200, 200], fontStyle: 'bold', halign: 'center' } }]);
@@ -290,16 +292,53 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
   const handleSaveDays = async (start: string, end: string) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
-    const newDays = [...(board.shootingDays || [])];
     
+    // 1. Generate new days list
+    const newDays: string[] = [];
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
-        if (!newDays.includes(dateStr)) {
-            newDays.push(dateStr);
-        }
+        newDays.push(dateStr);
     }
     newDays.sort();
     
+    // 2. Get old days sorted
+    const currentDays = [...(board.shootingDays || [])].sort();
+    
+    // 3. Build mapping (Old Day -> New Day by index)
+    const dayMapping: Record<string, string> = {};
+    const daysToUnschedule: string[] = [];
+    
+    currentDays.forEach((oldDay, index) => {
+        if (index < newDays.length) {
+            dayMapping[oldDay] = newDays[index];
+        } else {
+            daysToUnschedule.push(oldDay);
+        }
+    });
+    
+    // 4. Find scenes to update
+    const scenesToUpdate: Scene[] = [];
+    (Object.values(scenes) as Scene[]).forEach(scene => {
+        if (!scene.shootDay) return;
+        
+        if (dayMapping[scene.shootDay]) {
+            // Only update if the day actually changed
+            if (dayMapping[scene.shootDay] !== scene.shootDay) {
+                scenesToUpdate.push({ ...scene, shootDay: dayMapping[scene.shootDay] });
+            }
+        } else if (daysToUnschedule.includes(scene.shootDay)) {
+            scenesToUpdate.push({ ...scene, shootDay: undefined });
+        }
+    });
+
+    // 5. Update scenes in DB and UI
+    await Promise.all(scenesToUpdate.map(s => db.updateScene(s)));
+    
+    if (onSceneUpdate) {
+        scenesToUpdate.forEach(s => onSceneUpdate(s));
+    }
+    
+    // 6. Update Board
     const updatedBoard = { ...board, shootingDays: newDays };
     onUpdate(updatedBoard);
     await db.saveStripboard(updatedBoard);
@@ -443,7 +482,7 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
              {unscheduledStrips && unscheduledStrips.length > 0 && (
                 <div>
                     <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest mb-2">
-                        NON PROGRAMMATO
+                        {projectName || 'NON PROGRAMMATO'}
                     </div>
                     {unscheduledStrips.map(strip => renderStrip(strip))}
                 </div>
