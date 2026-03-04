@@ -1,5 +1,5 @@
 
-import { Project, Scene, ProductionElement, Stripboard, ProductionType, Strip, ScriptVersion, CalendarEvent } from "../types";
+import { Project, Scene, ProductionElement, Stripboard, ProductionType, Strip, ScriptVersion, CalendarEvent, ODGData } from "../types";
 
 const LOCAL_STORAGE_KEY = 'nico_schedule_pro_db_v2';
 
@@ -10,6 +10,7 @@ interface DBState {
   stripboards: Record<string, Stripboard[]>; 
   scripts: Record<string, ScriptVersion[]>; 
   calendarEvents: Record<string, CalendarEvent[]>;
+  odgs: Record<string, ODGData[]>; // projectId -> ODGData[]
   analysisResults: Record<string, any>; // projectId -> result object
 }
 
@@ -20,6 +21,7 @@ const defaultState: DBState = {
   stripboards: {}, 
   scripts: {}, 
   calendarEvents: {}, 
+  odgs: {},
   analysisResults: {} 
 };
 
@@ -113,6 +115,7 @@ export const db = {
     delete state.stripboards[projectId];
     delete state.scripts[projectId];
     delete state.calendarEvents[projectId];
+    delete state.odgs[projectId];
     if (state.analysisResults) delete state.analysisResults[projectId];
     saveState(state);
   },
@@ -299,6 +302,24 @@ export const db = {
     const state = loadState();
     const hidden = state.analysisResults?.['global']?.hiddenBanners || [];
     return hidden.includes(bannerId);
+  },
+
+  getODG: async (projectId: string, date: string): Promise<ODGData | null> => {
+    const state = loadState();
+    if (!state.odgs[projectId]) return null;
+    return state.odgs[projectId].find(o => o.date === date) || null;
+  },
+
+  saveODG: async (odg: ODGData): Promise<void> => {
+    const state = loadState();
+    if (!state.odgs[odg.projectId]) state.odgs[odg.projectId] = [];
+    const index = state.odgs[odg.projectId].findIndex(o => o.date === odg.date);
+    if (index >= 0) {
+      state.odgs[odg.projectId][index] = odg;
+    } else {
+      state.odgs[odg.projectId].push(odg);
+    }
+    saveState(state);
   },
 
   resetProjectScriptData: async (projectId: string): Promise<void> => {

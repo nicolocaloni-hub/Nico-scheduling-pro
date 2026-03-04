@@ -8,7 +8,7 @@ export async function GET() {
     ok: true,
     environment: process.env.NODE_ENV,
     keyPresent: Boolean(process.env.API_KEY),
-    service: "Nico Schedule Pro API",
+    service: "Smart Set Scheduling Pro API",
     timestamp: new Date().toISOString()
   });
 }

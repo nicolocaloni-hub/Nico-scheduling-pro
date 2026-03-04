@@ -1,7 +1,6 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { SettingsModal } from './SettingsModal';
 import { useTranslation } from '../services/i18n';
 
 interface LayoutProps {
@@ -11,7 +10,6 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [showSettings, setShowSettings] = useState(false);
   const { t } = useTranslation();
 
   // Apply theme on mount and listen for changes
@@ -71,14 +69,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
              </button>
            ))}
         </div>
-        <div className="pb-6 flex flex-col items-center">
-          <button 
-            onClick={() => setShowSettings(true)}
-            className="p-3 text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-white transition-colors text-2xl"
-          >
-            ⚙️
-          </button>
-        </div>
       </nav>
 
       {/* Main Content */}
@@ -104,8 +94,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
            ))}
         </div>
       </nav>
-
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 };

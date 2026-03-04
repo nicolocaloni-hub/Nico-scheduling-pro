@@ -10,6 +10,12 @@ const translations = {
     nav_stripboard: 'Piano Lav.',
     nav_calendar: 'Calendario',
     
+    // Landing Page
+    landing_subtitle: 'Strumenti professionali per la gestione della produzione cinematografica.',
+    scheduling_desc: 'Gestione professionale di scene, cast, location e piano di lavorazione dinamico.',
+    odg_label: 'ORDINE DEL GIORNO',
+    odg_desc: 'Creazione e gestione degli ordini del giorno, convocazioni e note di produzione.',
+    
     // Dashboard
     welcome_back: 'Bentornato, Producer',
     new_btn: 'Nuovo',
@@ -23,6 +29,7 @@ const translations = {
     delete_project_confirm: 'Eliminare progetto?\nQuesta azione elimina definitivamente il progetto e i dati associati.',
     
     // Settings
+    settings: 'Impostazioni',
     settings_title: 'Impostazioni',
     dark_theme: 'Tema Scuro',
     light_theme: 'Tema Chiaro',
@@ -77,6 +84,12 @@ const translations = {
     nav_stripboard: 'Stripboard',
     nav_calendar: 'Calendar',
     
+    // Landing Page
+    landing_subtitle: 'Professional tools for film production management.',
+    scheduling_desc: 'Professional management of scenes, cast, locations and dynamic stripboard.',
+    odg_label: 'DAILY CALL SHEET',
+    odg_desc: 'Creation and management of call sheets, call times and production notes.',
+    
     // Dashboard
     welcome_back: 'Welcome back, Producer',
     new_btn: 'New',
@@ -90,6 +103,7 @@ const translations = {
     delete_project_confirm: 'Delete project?\nThis action permanently deletes the project and associated data.',
     
     // Settings
+    settings: 'Settings',
     settings_title: 'Settings',
     dark_theme: 'Dark Theme',
     light_theme: 'Light Theme',

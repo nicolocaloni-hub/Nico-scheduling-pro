@@ -150,3 +150,85 @@ export interface CalendarEvent {
   notes?: string;
   time?: string;
 }
+
+export interface ODGSceneEntry {
+  sceneId: string;
+  selected: boolean;
+  order: number;
+  notes?: string;
+}
+
+export interface ODGCallEntry {
+  id: string;
+  role: string;
+  name: string;
+  scenes?: string;
+  pickupTime?: string;
+  makeupTime?: string;
+  costumeTime?: string;
+  readyTime?: string;
+  setTime?: string;
+  callTime: string; // General call time
+  notes?: string;
+}
+
+export interface ODGData {
+  id: string;
+  projectId: string;
+  date: string; // YYYY-MM-DD
+  shootDayNumber: number;
+  projectName: string;
+  director?: string;
+  odgNumber?: number;
+  
+  // Info Generali
+  baseCamp: string;
+  locationCity: string;
+  mainSet: string;
+  setAddress: string;
+  startTime: string;
+  readyToShootTime?: string;
+  lunchTime: string;
+  wrapTime?: string;
+  endTime: string;
+  
+  // New fields from screenshot
+  metroStation?: string;
+  parkingInfo?: string;
+  hospitalInfo?: string;
+  executiveProducer?: string;
+  productionOrganizer?: string;
+  assistantDirector?: string;
+  dop?: string;
+  soundMixer?: string;
+  productionDesigner?: string;
+  costumeDesigner?: string;
+  weatherMaxTemp?: string;
+  weatherMinTemp?: string;
+  weather?: string;
+  sunriseTime?: string;
+  sunsetTime?: string;
+  mottoOfTheDay?: string;
+  
+  // Scene
+  scenes: ODGSceneEntry[];
+  
+  // Convocazioni
+  castCalls: ODGCallEntry[];
+  crewCalls: ODGCallEntry[];
+  
+  // Note
+  transportNotes: string;
+  weatherNotes: string;
+  backgroundNotes: string;
+  productionNotes: string;
+
+  // Department notes
+  propsNotes?: string;
+  soundNotes?: string;
+  costumeNotes?: string;
+  makeupNotes?: string;
+  photographyNotes?: string;
+  regiaNotes?: string;
+  animaliNotes?: string;
+}

@@ -129,10 +129,19 @@ export const StripboardView: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto py-8 px-4 h-[calc(100vh-80px)] flex flex-col">
             <header className="mb-8">
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                   <span>{project?.name || 'Progetto'}</span>
-                   <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                   <span className="text-gray-900 dark:text-white font-bold uppercase tracking-wider">PDL</span>
+                <div className="flex items-center gap-4 mb-4">
+                    <button 
+                        onClick={() => navigate('/')}
+                        className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        title="Torna alla Suite"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    </button>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                       <span>{project?.name || 'Progetto'}</span>
+                       <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                       <span className="text-gray-900 dark:text-white font-bold uppercase tracking-wider">PDL</span>
+                    </div>
                 </div>
                 <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Piani di Lavorazione</h1>
                 <p className="text-gray-500 dark:text-gray-400">Gestisci i tuoi piani e ottimizza le giornate di ripresa.</p>
