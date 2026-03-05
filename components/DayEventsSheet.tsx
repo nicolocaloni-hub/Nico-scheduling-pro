@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarEvent } from '../types';
+import { CalendarEvent, Scene } from '../types';
 import { db } from '../services/store';
 import { Button } from './Button';
 
 interface DayEventsSheetProps {
   date: string;
   events: CalendarEvent[];
+  scenes?: Scene[];
   projectId: string;
   projectType?: string;
   projectName?: string;
@@ -18,6 +19,7 @@ interface DayEventsSheetProps {
 export const DayEventsSheet: React.FC<DayEventsSheetProps> = ({ 
   date, 
   events, 
+  scenes = [],
   projectId, 
   projectType, 
   projectName, 
@@ -110,10 +112,10 @@ export const DayEventsSheet: React.FC<DayEventsSheetProps> = ({
              </div>
           )}
 
-          {events.length === 0 && !isAdding && (
+          {events.length === 0 && scenes.length === 0 && !isAdding && (
             <div className="text-center py-10 text-gray-500">
               <i className="fa-regular fa-calendar-xmark text-4xl mb-3 opacity-50"></i>
-              <p>Nessun evento per questo giorno.</p>
+              <p>Nessun evento o scena per questo giorno.</p>
             </div>
           )}
 
@@ -146,6 +148,32 @@ export const DayEventsSheet: React.FC<DayEventsSheetProps> = ({
               </div>
             </div>
           ))}
+
+          {scenes.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Scene in programma ({scenes.length})</h4>
+              <div className="space-y-2">
+                {scenes.map(scene => (
+                  <div key={scene.id} className="bg-gray-800/50 border border-gray-700 p-3 rounded-lg flex items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-gray-700 flex items-center justify-center font-bold text-white shrink-0">
+                      {scene.sceneNumber}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-white truncate">
+                        {scene.intExt} {scene.setName} - {scene.dayNight}
+                      </div>
+                      <div className="text-xs text-gray-400 truncate">
+                        {scene.synopsis}
+                      </div>
+                    </div>
+                    <div className="text-xs font-mono text-gray-500 shrink-0">
+                      {scene.pageCountInEighths} p.
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {isAdding && (
             <div className="bg-gray-800/50 border border-gray-700 p-4 rounded-xl space-y-3 animate-in fade-in zoom-in-95 duration-200">

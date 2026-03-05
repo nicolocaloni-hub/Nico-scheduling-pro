@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
-import { CalendarEvent, Project } from '../types';
+import { CalendarEvent, Project, Scene } from '../types';
 import { Button } from '../components/Button';
 import { DayEventsSheet } from '../components/DayEventsSheet';
 import { GenerateScheduleModal } from '../components/GenerateScheduleModal';
@@ -12,6 +12,7 @@ export const CalendarPage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [scenes, setScenes] = useState<Scene[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
 
@@ -26,6 +27,8 @@ export const CalendarPage: React.FC = () => {
   const loadData = async (pid: string) => {
     const evts = await db.getEvents(pid);
     setEvents(evts);
+    const scns = await db.getProjectScenes(pid);
+    setScenes(scns);
     const projects = await db.getProjects();
     const p = projects.find(proj => proj.id === pid);
     if (p) setProject(p);
@@ -83,7 +86,8 @@ export const CalendarPage: React.FC = () => {
           const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           
           const dayEvents = events.filter(e => e.date === dStr);
-          const hasShooting = dayEvents.some(e => e.type === 'shooting');
+          const dayScenes = scenes.filter(s => s.shootDay === dStr);
+          const hasShooting = dayEvents.some(e => e.type === 'shooting') || dayScenes.length > 0;
           const isToday = dStr === todayStr;
 
           // Check if date is within project duration
@@ -97,6 +101,12 @@ export const CalendarPage: React.FC = () => {
                 isProjectDay = true;
             }
           }
+
+          // Combine events and scenes for dots (max 4 dots total)
+          const indicators = [
+            ...dayEvents.map(e => ({ type: e.type === 'shooting' ? 'shooting' : 'general' })),
+            ...(dayScenes.length > 0 ? [{ type: 'scene' }] : []) // Just one dot for all scenes to avoid clutter
+          ];
 
           return (
             <div 
@@ -114,13 +124,13 @@ export const CalendarPage: React.FC = () => {
               
               {/* Event Dots */}
               <div className="flex gap-1 mt-1 flex-wrap justify-center px-1">
-                {dayEvents.slice(0, 4).map((ev, i) => (
+                {indicators.slice(0, 4).map((ind, i) => (
                   <div 
                     key={i} 
-                    className={`w-1.5 h-1.5 rounded-full ${ev.type === 'shooting' ? 'bg-blue-400 shadow-[0_0_5px_rgba(96,165,250,0.5)]' : 'bg-gray-400'}`} 
+                    className={`w-1.5 h-1.5 rounded-full ${ind.type === 'shooting' || ind.type === 'scene' ? 'bg-blue-400 shadow-[0_0_5px_rgba(96,165,250,0.5)]' : 'bg-gray-400'}`} 
                   />
                 ))}
-                {dayEvents.length > 4 && <span className="text-[8px] text-gray-500 leading-none">+</span>}
+                {indicators.length > 4 && <span className="text-[8px] text-gray-500 leading-none">+</span>}
               </div>
             </div>
           );
@@ -158,6 +168,7 @@ export const CalendarPage: React.FC = () => {
         <DayEventsSheet 
           date={selectedDate}
           events={events.filter(e => e.date === selectedDate)}
+          scenes={scenes.filter(s => s.shootDay === selectedDate)}
           projectId={projectId}
           projectType={project?.type}
           projectName={project?.name}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { CalendarDays, CalendarCheck } from 'lucide-react';
 import { Stripboard, Scene, Strip, ElementCategory, ProductionElement } from '../types';
 import { db } from '../services/store';
 import { SceneEditorModal } from './SceneEditorModal';
@@ -448,12 +449,12 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
         className={`w-full px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors select-none ${isOpen ? 'bg-gray-50 dark:bg-gray-700/30 border-b border-gray-200 dark:border-gray-700' : ''}`}
       >
         <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-            <i className={`fa-solid ${isOpen ? 'fa-folder-open' : 'fa-folder'}`}></i>
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${isOpen ? 'bg-primary-600 text-white shadow-md shadow-primary-500/30' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
+            {isOpen ? <CalendarCheck size={24} strokeWidth={1.5} /> : <CalendarDays size={24} strokeWidth={1.5} />}
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-white text-base">{displayName}</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 dark:text-white text-lg">{displayName}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-1">
               <span><i className="fa-regular fa-calendar mr-1"></i>{allDays.length} {t('days')}</span>
               <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
               <span><i className="fa-solid fa-file-lines mr-1"></i>{totalPages.toFixed(1)} {t('pages')}</span>
