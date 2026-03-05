@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Settings, ArrowLeft } from 'lucide-react';
 import { db } from '../services/store';
 import { Scene, ProductionElement, ElementCategory, IntExt, DayNight, ProductionType } from '../types';
 import { Button } from '../components/Button';
@@ -10,6 +11,7 @@ import { DebugDetailsAccordion } from '../components/DebugDetailsAccordion';
 import { ResultsPreview } from '../components/ResultsPreview';
 import { CreateProjectModal } from '../components/CreateProjectModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { SettingsModal } from '../components/SettingsModal';
 import { useTranslation } from '../services/i18n';
 
 export const ScriptImport: React.FC = () => {
@@ -28,6 +30,7 @@ export const ScriptImport: React.FC = () => {
   const [previewData, setPreviewData] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const { t } = useTranslation();
 
   const addLog = (msg: string) => {
@@ -317,9 +320,25 @@ export const ScriptImport: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8 py-8 px-4">
       <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 dark:text-white">{t('import_title')}</h1>
-          <p className="text-gray-500 dark:text-gray-400">{t('import_subtitle')}</p>
+        <div className="flex items-center gap-4">
+          <button 
+              onClick={() => navigate('/projects')}
+              className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              title="Torna ai Progetti"
+          >
+              <ArrowLeft size={20} />
+          </button>
+          <button 
+              onClick={() => setShowSettings(true)}
+              className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              title={t('settings')}
+          >
+              <Settings size={20} strokeWidth={1.5} />
+          </button>
+          <div>
+            <h1 className="text-3xl font-black text-gray-900 dark:text-white">{t('import_title')}</h1>
+            <p className="text-gray-500 dark:text-gray-400">{t('import_subtitle')}</p>
+          </div>
         </div>
         
         <div className="flex gap-3">
@@ -334,9 +353,11 @@ export const ScriptImport: React.FC = () => {
               >
                 {t('reset')}
               </button>
-              <Button onClick={() => navigate('/stripboard')}>
-                <span className="text-xs">{t('go_to_pdl')}</span>
-              </Button>
+              {projectId && (
+                <Button onClick={() => navigate('/stripboard')}>
+                  <span className="text-xs">{t('go_to_pdl')}</span>
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -445,6 +466,8 @@ export const ScriptImport: React.FC = () => {
         confirmText="Reset"
         cancelText="Annulla"
       />
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 };
