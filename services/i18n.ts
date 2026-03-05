@@ -13,6 +13,7 @@ const translations = {
     // Landing Page
     landing_subtitle: 'Strumenti professionali per la gestione della produzione cinematografica.',
     scheduling_desc: 'Gestione professionale di scene, cast, location e piano di lavorazione dinamico.',
+    landing_stripboard_label: 'PIANO DI LAVORAZIONE',
     odg_label: 'ORDINE DEL GIORNO',
     odg_desc: 'Creazione e gestione degli ordini del giorno, convocazioni e note di produzione.',
     
@@ -87,6 +88,7 @@ const translations = {
     // Landing Page
     landing_subtitle: 'Professional tools for film production management.',
     scheduling_desc: 'Professional management of scenes, cast, locations and dynamic stripboard.',
+    landing_stripboard_label: 'STRIPBOARD',
     odg_label: 'DAILY CALL SHEET',
     odg_desc: 'Creation and management of call sheets, call times and production notes.',
     

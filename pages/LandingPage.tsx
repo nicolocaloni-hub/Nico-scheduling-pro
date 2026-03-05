@@ -65,7 +65,7 @@ export const LandingPage: React.FC = () => {
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-black text-gray-900 dark:text-white leading-tight mb-1">SCHEDULING PRO</h2>
               <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2">
-                {t('nav_stripboard') || 'PIANIFICAZIONE & STRIPBOARD'}
+                {t('landing_stripboard_label') || 'PIANO DI LAVORAZIONE'}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">
                 {t('scheduling_desc') || 'Gestione professionale di scene, cast, location e piano di lavorazione dinamico.'}
