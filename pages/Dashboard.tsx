@@ -73,7 +73,7 @@ export const Dashboard: React.FC = () => {
             className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
             title={t('settings')}
         >
-            <Settings size={20} strokeWidth={1.5} />
+            <Settings size={28} strokeWidth={1.2} />
         </button>
         <div className="text-center">
             <h1 className="text-3xl font-black text-gray-900 dark:text-white flex items-center justify-center gap-2">

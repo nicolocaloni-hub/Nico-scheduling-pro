@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trash2 } from 'lucide-react';
 import { Project, ProductionType } from '../types';
 import { useTranslation } from '../services/i18n';
 import { useLongPress } from '../hooks/useLongPress';
@@ -58,10 +59,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onOpen, onDel
                         e.stopPropagation();
                         handleDelete();
                     }}
-                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-500 transition-all shadow-sm relative z-20 group/trash"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-red-50 dark:bg-red-900/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 border border-red-100 dark:border-red-800/50 hover:border-red-500 dark:hover:border-red-500 transition-all shadow-sm relative z-20 group/trash"
                     title={t('delete_project')}
                 >
-                    <span className="text-lg group-hover/trash:scale-110 transition-transform">🗑️</span>
+                    <Trash2 size={18} strokeWidth={1.5} className="group-hover/trash:scale-110 transition-transform" />
                 </button>
             </div>
         </div>

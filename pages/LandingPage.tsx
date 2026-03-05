@@ -35,17 +35,19 @@ export const LandingPage: React.FC = () => {
       {/* Settings Button */}
       <button 
         onClick={() => setShowSettings(true)}
-        className="fixed top-6 left-6 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-all active:scale-90 z-50"
+        className="fixed top-8 left-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-all active:scale-90 z-50 p-2"
         title={t('settings') || 'Impostazioni'}
       >
-        <Settings size={20} strokeWidth={1.5} />
+        <Settings size={28} strokeWidth={1.2} />
       </button>
 
       <div className="w-full max-w-md space-y-8">
         
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-black tracking-tighter text-gray-900 dark:text-white uppercase">SMARTSET</h1>
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-black tracking-tighter text-gray-900 dark:text-white uppercase leading-[0.85]">
+            SMARTSET<br />PLAN SUITE
+          </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm px-4 leading-relaxed">
             {t('landing_subtitle') || 'Strumenti professionali per la gestione della produzione cinematografica.'}
           </p>
