@@ -24,14 +24,41 @@ export default async function handler(req: any, res: any) {
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const modelId = 'gemini-3-flash-preview';
+    const modelId = 'gemini-2.5-flash-lite';
     
     console.log(`[API] Calling Gemini (${modelId})...`);
 
-    const systemInstruction = `Sei un esperto assistente alla regia (AD). 
-Analizza la sceneggiatura PDF allegata e produci uno spoglio completo delle scene in formato JSON.
-Estrai: scene (numero, slugline, int/est, giorno/notte, set, location, pagine in ottavi, sinossi), 
-elementi (nome, categoria come Cast, Props, etc), e mappa quali elementi appaiono in quali scene.`;
+    const systemInstruction = `Sei un esperto assistente alla regia (AD) con anni di esperienza nello spoglio di sceneggiature.
+Il tuo compito è analizzare la sceneggiatura PDF fornita e produrre un breakdown dettagliato e professionale in formato JSON rigoroso.
+
+OBIETTIVO:
+Identificare nel PDF le informazioni già presenti (scene, cast, props, location) senza inventare o interpretare eccessivamente.
+
+ISTRUZIONI PER L'ESTRAZIONE:
+
+1. **SCENE**:
+   - Riconosci le scene dalle slugline/intestazioni (es. "INT. CUCINA - GIORNO").
+   - **sceneNumber**: Estrai il numero se presente, altrimenti lascialo vuoto o usa un progressivo se evidente.
+   - **slugline**: Riporta l'intestazione completa.
+   - **intExt**: Normalizza TASSATIVAMENTE in: "INT", "EXT", "INT/EXT" oppure "" se non specificato.
+   - **dayNight**: Normalizza TASSATIVAMENTE in: "DAY", "NIGHT", "DAWN", "DUSK" oppure "" se non specificato.
+   - **setName**: L'ambiente specifico (es. "CUCINA", "AUTO DI LUCA").
+   - **locationName**: Il luogo più ampio (es. "CASA DI MARIO", "ROMA"). Se non distinto, usa lo stesso del setName.
+   - **pageCountInEighths**: Calcola in ottavi di pagina (es. "1 4/8") SOLO se deducibile dalla lunghezza del testo, altrimenti "".
+   - **synopsis**: Brevissima descrizione dell'azione (max 1-2 frasi).
+
+2. **ELEMENTI (Elements)**:
+   - Estrai SOLO elementi espliciti nel testo.
+   - **Cast**: Solo personaggi che parlano o sono chiaramente presenti e attivi in scena.
+   - **Props**: Oggetti concreti manipolati o essenziali per la scena (es. "pistola", "telefono"). NON includere elementi di sfondo generici a meno che non interagiscano.
+   - **Categorie Ammesse**: "Cast", "Props", "Costume", "MakeupHair", "Vehicles", "Animals", "SFX", "VFX", "Stunts", "Extras", "SetDressing", "Sound", "SpecialEquipment".
+   - **Deduplica**: Non creare duplicati per lo stesso elemento (es. "Luca" e "LUCA" sono lo stesso).
+
+3. **ASSOCIAZIONE (SceneElements)**:
+   - Crea una mappa dove la chiave è il 'sceneNumber' e il valore è una lista di 'name' degli elementi presenti in quella scena.
+
+FORMATO OUTPUT:
+JSON valido con le chiavi: "scenes", "elements", "sceneElements".`;
 
     const responseSchema = {
       type: Type.OBJECT,
@@ -43,14 +70,14 @@ elementi (nome, categoria come Cast, Props, etc), e mappa quali elementi appaion
             properties: {
               sceneNumber: { type: Type.STRING },
               slugline: { type: Type.STRING },
-              intExt: { type: Type.STRING },
-              dayNight: { type: Type.STRING },
+              intExt: { type: Type.STRING, enum: ["INT", "EXT", "INT/EXT", ""] },
+              dayNight: { type: Type.STRING, enum: ["DAY", "NIGHT", "DAWN", "DUSK", ""] },
               setName: { type: Type.STRING },
               locationName: { type: Type.STRING },
               pageCountInEighths: { type: Type.STRING },
               synopsis: { type: Type.STRING },
             },
-            required: ["sceneNumber", "slugline", "intExt", "dayNight", "pageCountInEighths", "synopsis"]
+            required: ["sceneNumber", "slugline", "intExt", "dayNight", "setName", "locationName", "synopsis"]
           }
         },
         elements: {
@@ -59,13 +86,18 @@ elementi (nome, categoria come Cast, Props, etc), e mappa quali elementi appaion
             type: Type.OBJECT,
             properties: {
               name: { type: Type.STRING },
-              category: { type: Type.STRING }
-            }
+              category: { 
+                type: Type.STRING, 
+                enum: ["Cast", "Props", "Costume", "MakeupHair", "Vehicles", "Animals", "SFX", "VFX", "Stunts", "Extras", "SetDressing", "Sound", "SpecialEquipment"] 
+              }
+            },
+            required: ["name", "category"]
           }
         },
         sceneElements: {
           type: Type.OBJECT,
-          additionalProperties: { type: Type.ARRAY, items: { type: Type.STRING } }
+          description: "Mappa: chiave = sceneNumber, valore = array di nomi elementi",
+          // Nota: Gemini potrebbe non validare strettamente additionalProperties in tutti i casi, ma aiuta la struttura.
         }
       },
       required: ["scenes", "elements", "sceneElements"]
@@ -76,7 +108,7 @@ elementi (nome, categoria come Cast, Props, etc), e mappa quali elementi appaion
       contents: {
         parts: [
           { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
-          { text: "Esegui lo spoglio completo di questo copione." }
+          { text: "Analizza la sceneggiatura. Estrai scene ed elementi seguendo rigorosamente le istruzioni." }
         ]
       },
       config: {
@@ -87,14 +119,30 @@ elementi (nome, categoria come Cast, Props, etc), e mappa quali elementi appaion
     });
 
     console.log("[API] Gemini response received");
-    const rawJson = result.text || "{}";
-    const data = JSON.parse(rawJson);
+    let rawJson = result.text || "{}";
+    
+    // Pulizia difensiva del JSON (rimozione backticks markdown se presenti)
+    rawJson = rawJson.trim();
+    if (rawJson.startsWith("```json")) {
+      rawJson = rawJson.replace(/^```json/, "").replace(/```$/, "");
+    } else if (rawJson.startsWith("```")) {
+      rawJson = rawJson.replace(/^```/, "").replace(/```$/, "");
+    }
+
+    let data;
+    try {
+      data = JSON.parse(rawJson);
+    } catch (parseError) {
+      console.error("[API] Errore parsing JSON:", parseError);
+      console.error("[API] Raw JSON ricevuto:", rawJson.substring(0, 200) + "...");
+      throw new Error("Il modello ha prodotto un JSON non valido.");
+    }
 
     const summary = {
       sceneCount: data.scenes?.length || 0,
       locationCount: new Set(data.scenes?.map((s: any) => s.locationName)).size,
       castCount: data.elements?.filter((e: any) => e.category === 'Cast').length || 0,
-      propsCount: data.elements?.filter((e: any) => (e.category || '').toLowerCase().includes('prop')).length || 0,
+      propsCount: data.elements?.filter((e: any) => e.category === 'Props').length || 0,
     };
 
     console.log("[API] Response parsed and summary generated");

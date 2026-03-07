@@ -40,14 +40,43 @@ export default async function handler(req: any, res: any) {
     try {
       // FIX: Use named parameter for GoogleGenAI initialization and strictly process.env.API_KEY.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const modelId = 'gemini-3-flash-preview';
+      const modelId = 'gemini-2.5-flash-lite';
       
       jobState.status = 'running';
       jobState.modelId = modelId;
       jobState.step = 'Gemini sta analizzando il documento...';
 
-      const systemInstruction = `You are a professional assistant director. Perform a full script breakdown.
-      Return JSON only. Focus on scenes, sets, day/night, and production elements.`;
+      const systemInstruction = `Sei un esperto assistente alla regia (AD) con anni di esperienza nello spoglio di sceneggiature.
+Il tuo compito è analizzare la sceneggiatura PDF fornita e produrre un breakdown dettagliato e professionale in formato JSON rigoroso.
+
+OBIETTIVO:
+Identificare nel PDF le informazioni già presenti (scene, cast, props, location) senza inventare o interpretare eccessivamente.
+
+ISTRUZIONI PER L'ESTRAZIONE:
+
+1. **SCENE**:
+   - Riconosci le scene dalle slugline/intestazioni (es. "INT. CUCINA - GIORNO").
+   - **sceneNumber**: Estrai il numero se presente, altrimenti lascialo vuoto o usa un progressivo se evidente.
+   - **slugline**: Riporta l'intestazione completa.
+   - **intExt**: Normalizza TASSATIVAMENTE in: "INT", "EXT", "INT/EXT" oppure "" se non specificato.
+   - **dayNight**: Normalizza TASSATIVAMENTE in: "DAY", "NIGHT", "DAWN", "DUSK" oppure "" se non specificato.
+   - **setName**: L'ambiente specifico (es. "CUCINA", "AUTO DI LUCA").
+   - **locationName**: Il luogo più ampio (es. "CASA DI MARIO", "ROMA"). Se non distinto, usa lo stesso del setName.
+   - **pageCountInEighths**: Calcola in ottavi di pagina (es. "1 4/8") SOLO se deducibile dalla lunghezza del testo, altrimenti "".
+   - **synopsis**: Brevissima descrizione dell'azione (max 1-2 frasi).
+
+2. **ELEMENTI (Elements)**:
+   - Estrai SOLO elementi espliciti nel testo.
+   - **Cast**: Solo personaggi che parlano o sono chiaramente presenti e attivi in scena.
+   - **Props**: Oggetti concreti manipolati o essenziali per la scena (es. "pistola", "telefono"). NON includere elementi di sfondo generici a meno che non interagiscano.
+   - **Categorie Ammesse**: "Cast", "Props", "Costume", "MakeupHair", "Vehicles", "Animals", "SFX", "VFX", "Stunts", "Extras", "SetDressing", "Sound", "SpecialEquipment".
+   - **Deduplica**: Non creare duplicati per lo stesso elemento (es. "Luca" e "LUCA" sono lo stesso).
+
+3. **ASSOCIAZIONE (SceneElements)**:
+   - Crea una mappa dove la chiave è il 'sceneNumber' e il valore è una lista di 'name' degli elementi presenti in quella scena.
+
+FORMATO OUTPUT:
+JSON valido con le chiavi: "scenes", "elements", "sceneElements".`;
 
       const responseSchema = {
         type: Type.OBJECT,
@@ -59,14 +88,14 @@ export default async function handler(req: any, res: any) {
               properties: {
                 sceneNumber: { type: Type.STRING },
                 slugline: { type: Type.STRING },
-                intExt: { type: Type.STRING },
-                dayNight: { type: Type.STRING },
+                intExt: { type: Type.STRING, enum: ["INT", "EXT", "INT/EXT", ""] },
+                dayNight: { type: Type.STRING, enum: ["DAY", "NIGHT", "DAWN", "DUSK", ""] },
                 setName: { type: Type.STRING },
                 locationName: { type: Type.STRING },
                 pageCountInEighths: { type: Type.STRING },
                 synopsis: { type: Type.STRING },
               },
-              required: ["sceneNumber", "slugline", "intExt", "dayNight", "pageCountInEighths"]
+              required: ["sceneNumber", "slugline", "intExt", "dayNight", "setName", "locationName", "synopsis"]
             }
           },
           elements: {
@@ -75,15 +104,21 @@ export default async function handler(req: any, res: any) {
               type: Type.OBJECT,
               properties: {
                 name: { type: Type.STRING },
-                category: { type: Type.STRING }
-              }
+                category: { 
+                  type: Type.STRING, 
+                  enum: ["Cast", "Props", "Costume", "MakeupHair", "Vehicles", "Animals", "SFX", "VFX", "Stunts", "Extras", "SetDressing", "Sound", "SpecialEquipment"] 
+                }
+              },
+              required: ["name", "category"]
             }
           },
           sceneElements: {
             type: Type.OBJECT,
-            additionalProperties: { type: Type.ARRAY, items: { type: Type.STRING } }
+            description: "Mappa: chiave = sceneNumber, valore = array di nomi elementi",
+            // Nota: Gemini potrebbe non validare strettamente additionalProperties in tutti i casi, ma aiuta la struttura.
           }
-        }
+        },
+        required: ["scenes", "elements", "sceneElements"]
       };
 
       const response = await ai.models.generateContent({
@@ -92,7 +127,7 @@ export default async function handler(req: any, res: any) {
         contents: {
           parts: [
             { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
-            { text: "Analizza questo copione e crea uno spoglio completo delle scene." }
+            { text: "Analizza la sceneggiatura. Estrai scene ed elementi seguendo rigorosamente le istruzioni." }
           ]
         },
         config: {
@@ -103,7 +138,16 @@ export default async function handler(req: any, res: any) {
       });
 
       // FIX: Access text property directly.
-      const rawText = response.text || "";
+      let rawText = response.text || "";
+      
+      // Pulizia difensiva del JSON (rimozione backticks markdown se presenti)
+      rawText = rawText.trim();
+      if (rawText.startsWith("```json")) {
+        rawText = rawText.replace(/^```json/, "").replace(/```$/, "");
+      } else if (rawText.startsWith("```")) {
+        rawText = rawText.replace(/^```/, "").replace(/```$/, "");
+      }
+
       jobState.rawPreview = rawText.substring(0, 1500);
       jobState.status = 'parsing';
       jobState.step = 'Sto elaborando i risultati estratti...';
@@ -114,7 +158,7 @@ export default async function handler(req: any, res: any) {
         sceneCount: parsed.scenes?.length || 0,
         locationCount: new Set(parsed.scenes?.map((s: any) => s.locationName)).size,
         castCount: parsed.elements?.filter((e: any) => e.category === 'Cast').length || 0,
-        propsCount: parsed.elements?.filter((e: any) => (e.category || '').includes('Prop')).length || 0,
+        propsCount: parsed.elements?.filter((e: any) => e.category === 'Props').length || 0,
       };
 
       jobState.status = 'done';
