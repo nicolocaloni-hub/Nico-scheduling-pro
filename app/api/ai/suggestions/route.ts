@@ -6,9 +6,9 @@ export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
+    const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ ok: false, error: "API Key (NEXT_PUBLIC_GEMINI_API_KEY) mancante" }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "API Key mancante" }, { status: 401 });
     }
 
     const { context } = await req.json();

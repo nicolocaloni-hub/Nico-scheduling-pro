@@ -6,16 +6,16 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
+    const apiKey = process.env.API_KEY;
     
     if (!apiKey) {
       return NextResponse.json({ 
         ok: false,
-        error: "Missing NEXT_PUBLIC_GEMINI_API_KEY configuration. Please set the NEXT_PUBLIC_GEMINI_API_KEY environment variable."
+        error: "Missing API_KEY configuration. Please set the API_KEY environment variable."
       }, { status: 400 });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: 'ping',

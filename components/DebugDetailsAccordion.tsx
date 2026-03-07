@@ -6,6 +6,7 @@ interface DebugDetailsAccordionProps {
   onToggle: () => void;
   error: string | null;
   onClearLogs: () => void;
+  onCheckEnv: () => void;
 }
 
 export const DebugDetailsAccordion: React.FC<DebugDetailsAccordionProps> = ({
@@ -13,7 +14,8 @@ export const DebugDetailsAccordion: React.FC<DebugDetailsAccordionProps> = ({
   isOpen,
   onToggle,
   error,
-  onClearLogs
+  onClearLogs,
+  onCheckEnv
 }) => {
   return (
     <div className="border border-gray-800 rounded-xl overflow-hidden bg-black/20">
@@ -58,6 +60,12 @@ export const DebugDetailsAccordion: React.FC<DebugDetailsAccordionProps> = ({
               className="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-[10px] text-gray-300 transition-colors"
             >
               Clear Logs
+            </button>
+            <button 
+              onClick={onCheckEnv}
+              className="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-[10px] text-gray-300 transition-colors"
+            >
+              Check Server Env
             </button>
           </div>
         </div>
