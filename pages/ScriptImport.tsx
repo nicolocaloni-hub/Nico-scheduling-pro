@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Bot } from 'lucide-react';
 import { db } from '../services/store';
 import { Scene, ProductionElement, ElementCategory, IntExt, DayNight, ProductionType } from '../types';
 import { Button } from '../components/Button';
@@ -389,7 +389,18 @@ export const ScriptImport: React.FC = () => {
 
           {/* Results Preview */}
           {summary && importState === 'done' && (
-            <ResultsPreview summary={summary} previewData={previewData} />
+            <div className="space-y-4">
+              <ResultsPreview summary={summary} previewData={previewData} />
+              <div className="flex justify-center">
+                <button
+                  onClick={() => alert(`Modello utilizzato: ${modelUsed || 'Sconosciuto'}`)}
+                  className="px-3 py-1 bg-gray-800 text-xs text-gray-400 rounded-full border border-gray-700 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"
+                >
+                  <Bot size={12} />
+                  Modello AI
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Debug Details */}
