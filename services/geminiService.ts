@@ -15,8 +15,8 @@ export const parseEighthsToFloat = (eighthsStr: string): number => {
 };
 
 const getApiKey = () => {
-  const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("API Key mancante. Verifica la configurazione.");
+  const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!key) throw new Error("API Key (NEXT_PUBLIC_GEMINI_API_KEY) mancante. Verifica la configurazione.");
   return key;
 };
 
@@ -25,7 +25,7 @@ export const analyzeScriptPdf = async (
   onDebugInfo?: (info: any) => void
 ): Promise<{ data: BreakdownResult, summary: any, modelUsed: string }> => {
   
-  const modelId = 'gemini-flash-latest'; // Using flash for speed/cost, or pro for quality
+  const modelId = 'gemini-3-flash-preview'; // Using flash for speed/cost, or pro for quality
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
   const systemInstruction = `Sei un esperto assistente alla regia (AD) con anni di esperienza nello spoglio di sceneggiature.

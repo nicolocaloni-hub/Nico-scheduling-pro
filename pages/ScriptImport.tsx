@@ -184,7 +184,7 @@ export const ScriptImport: React.FC = () => {
 
   const checkServerEnv = async () => {
     addLog("[UI] Controllo ambiente...");
-    const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
     addLog(`[CLIENT] API Key presente: ${key ? 'Sì' : 'No'}`);
   };
 

@@ -11,10 +11,10 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
     if (!apiKey) {
-      console.error("[API] Missing API_KEY");
-      return res.status(400).json({ ok: false, error: "Missing API_KEY configuration on server." });
+      console.error("[API] Missing NEXT_PUBLIC_GEMINI_API_KEY");
+      return res.status(400).json({ ok: false, error: "Missing NEXT_PUBLIC_GEMINI_API_KEY configuration on server." });
     }
 
     const { pdfBase64 } = req.body || {};
@@ -23,7 +23,7 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ ok: false, error: "Contenuto PDF vuoto o non valido." });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     const modelId = 'gemini-2.5-flash-lite';
     
     console.log(`[API] Calling Gemini (${modelId})...`);

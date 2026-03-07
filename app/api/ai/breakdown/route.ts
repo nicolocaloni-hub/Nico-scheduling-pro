@@ -8,11 +8,11 @@ export async function POST(req: Request) {
   console.log("[API] Breakdown request received (App Router POST)");
   
   try {
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
     if (!apiKey) {
       return NextResponse.json({ 
         ok: false, 
-        error: "Chiave API (API_KEY) non configurata sul server." 
+        error: "Chiave API (NEXT_PUBLIC_GEMINI_API_KEY) non configurata sul server." 
       }, { status: 401 });
     }
 
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     const modelId = 'gemini-2.5-flash-lite';
     
     console.log(`[API] Avvio analisi con Gemini (${modelId})...`);

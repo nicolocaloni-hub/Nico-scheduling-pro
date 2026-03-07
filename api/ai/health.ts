@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 export default async function handler(req: any, res: any) {
   try {
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
     
     const diagnostics = {
       hasApiKey: !!apiKey,
@@ -18,12 +18,12 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ 
         ok: false,
         status: "error", 
-        message: "API_KEY non configurata nel server (process.env.API_KEY).",
+        message: "NEXT_PUBLIC_GEMINI_API_KEY non configurata nel server.",
         diagnostics
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: 'ping',
@@ -44,7 +44,7 @@ export default async function handler(req: any, res: any) {
       ok: false,
       status: "error",
       message: error.message || "Impossibile contattare l'API Gemini.",
-      diagnostics: { hasApiKey: !!process.env.API_KEY }
+      diagnostics: { hasApiKey: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY }
     });
   }
 }

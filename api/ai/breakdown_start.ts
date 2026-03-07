@@ -15,10 +15,10 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Usa POST' });
 
   const { pdfBase64 } = req.body;
-  // FIX: Strictly use process.env.API_KEY.
-  const apiKey = process.env.API_KEY;
+  // FIX: Strictly use process.env.NEXT_PUBLIC_GEMINI_API_KEY with fallbacks.
+  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
 
-  if (!apiKey) return res.status(500).json({ message: "API_KEY mancante" });
+  if (!apiKey) return res.status(500).json({ message: "NEXT_PUBLIC_GEMINI_API_KEY mancante" });
   if (!pdfBase64) return res.status(400).json({ message: "PDF mancante" });
 
   const jobId = crypto.randomUUID();
@@ -38,9 +38,9 @@ export default async function handler(req: any, res: any) {
   // Esecuzione "asincrona"
   (async () => {
     try {
-      // FIX: Use named parameter for GoogleGenAI initialization and strictly process.env.API_KEY.
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const modelId = 'gemini-2.5-flash-lite';
+      // FIX: Use named parameter for GoogleGenAI initialization and strictly process.env.NEXT_PUBLIC_GEMINI_API_KEY with fallbacks.
+      const ai = new GoogleGenAI({ apiKey });
+      const modelId = 'gemini-3-flash-preview';
       
       jobState.status = 'running';
       jobState.modelId = modelId;
