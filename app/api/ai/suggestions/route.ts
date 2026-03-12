@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const modelId = 'gemini-3-flash-preview';
+    const modelId = 'gemini-3.1-flash-lite-preview';
 
     const systemInstruction = `Sei un assistente di produzione cinematografica esperto e creativo.
 Analizza il contesto fornito (lista scene, sinossi o dettagli di una scena) e suggerisci elementi mancanti che sarebbero logici e arricchirebbero la produzione.

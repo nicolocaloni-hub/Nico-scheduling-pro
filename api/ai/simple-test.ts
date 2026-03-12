@@ -4,7 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 export const runtime = 'nodejs';
 
 export default async function handler(req: any, res: any) {
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-3.1-flash-lite-preview";
   try {
     // FIX: Strictly use process.env.API_KEY.
     const apiKey = process.env.API_KEY;

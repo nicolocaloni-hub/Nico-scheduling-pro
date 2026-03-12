@@ -17,7 +17,7 @@ export async function GET() {
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.1-flash-lite-preview',
       contents: 'ping',
     });
 

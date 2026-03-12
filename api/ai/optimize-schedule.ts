@@ -9,11 +9,11 @@ export default async function handler(req: any, res: any) {
   }
 
   const { scenes } = req.body;
-  // FIX: Strictly use process.env.API_KEY.
-  const apiKey = process.env.API_KEY;
+  // FIX: Strictly use process.env.NEXT_PUBLIC_GEMINI_API_KEY with fallbacks.
+  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ message: "Chiave API mancante sul server. Verifica API_KEY." });
+    return res.status(500).json({ message: "Chiave API mancante sul server. Verifica NEXT_PUBLIC_GEMINI_API_KEY." });
   }
 
   if (!scenes || !Array.isArray(scenes)) {
@@ -21,7 +21,7 @@ export default async function handler(req: any, res: any) {
   }
 
   // FIX: Use named parameter for GoogleGenAI initialization.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   
   const systemInstruction = `Sei un esperto Primo Assistente alla Regia (1st AD).
 Il tuo compito è ottimizzare l'ordine delle scene per un piano di lavorazione (stripboard).
@@ -35,7 +35,7 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON con la chiave "orderedSceneIds" conte
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       contents: `Ottimizza queste scene: ${JSON.stringify(scenes.map(s => ({ 
         id: s.id, 
         sceneNumber: s.sceneNumber, 

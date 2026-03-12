@@ -30,8 +30,8 @@ export const Dashboard: React.FC = () => {
     setLoading(false);
   };
 
-  const handleCreate = async (name: string, type: ProductionType, startDate: string, endDate: string, shootDays: string[]) => {
-    await db.createProject(name, type, startDate, endDate, shootDays);
+  const handleCreate = async (name: string, type: ProductionType) => {
+    await db.createProject(name, type);
     setShowNewModal(false);
     loadProjects();
   };

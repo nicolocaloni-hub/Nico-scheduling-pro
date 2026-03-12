@@ -40,7 +40,7 @@ export default async function handler(req: any, res: any) {
     try {
       // FIX: Use named parameter for GoogleGenAI initialization and strictly process.env.API_KEY.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const modelId = 'gemini-3-flash-preview';
+      const modelId = 'gemini-3.1-flash-lite-preview';
       
       jobState.status = 'running';
       jobState.modelId = modelId;

@@ -7,7 +7,6 @@ import { Scene, ProductionElement, ElementCategory, IntExt, DayNight, Production
 import { Button } from '../components/Button';
 import { parseEighthsToFloat, analyzeScriptPdf } from '../services/geminiService';
 import { AiStatusBar, ImportState } from '../components/AiStatusBar';
-import { DebugDetailsAccordion } from '../components/DebugDetailsAccordion';
 import { ResultsPreview } from '../components/ResultsPreview';
 import { CreateProjectModal } from '../components/CreateProjectModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -24,7 +23,6 @@ export const ScriptImport: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
   
   // New state for UI components
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [modelUsed, setModelUsed] = useState<string | undefined>(undefined);
   const [previewData, setPreviewData] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -112,9 +110,9 @@ export const ScriptImport: React.FC = () => {
     window.location.reload();
   };
 
-  const handleCreateProject = async (name: string, type: ProductionType, startDate: string, endDate: string, shootDays: string[]) => {
+  const handleCreateProject = async (name: string, type: ProductionType) => {
     // 1. Create the project
-    const newProject = await db.createProject(name, type, startDate, endDate, shootDays);
+    const newProject = await db.createProject(name, type);
     
     // 2. Set as current project
     localStorage.setItem('currentProjectId', newProject.id);
@@ -184,8 +182,8 @@ export const ScriptImport: React.FC = () => {
 
   const checkServerEnv = async () => {
     addLog("[UI] Controllo ambiente...");
-    const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
-    addLog(`[CLIENT] API Key presente: ${key ? 'Sì' : 'No'}`);
+    const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
+    addLog(`[CLIENT] API Key di sistema presente: ${key ? 'Sì' : 'No'}`);
   };
 
   const startAnalysis = async () => {
@@ -194,7 +192,6 @@ export const ScriptImport: React.FC = () => {
     addLog("[UI] startAnalysis triggered");
     setImportState('uploading');
     setError(null);
-    setIsDetailsOpen(false);
 
     try {
       // Clear previous results now that we are starting a new analysis
@@ -244,7 +241,6 @@ export const ScriptImport: React.FC = () => {
       console.error("Analysis failed:", err);
       setError(err.message || "Errore sconosciuto durante l'analisi.");
       setImportState('error');
-      setIsDetailsOpen(true); // Auto-open on error
       addLog(`[CRITICAL] ${err.message}`);
     }
   };
@@ -316,19 +312,19 @@ export const ScriptImport: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 py-8 px-4">
-      <div className="flex justify-between items-end">
+    <div className="max-w-4xl mx-auto space-y-8 py-8 px-4">
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <button 
               onClick={() => navigate('/projects')}
-              className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               title="Torna ai Progetti"
           >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white">{t('import_title')}</h1>
-            <p className="text-gray-500 dark:text-gray-400">{t('import_subtitle')}</p>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white leading-tight">{t('import_title')}</h1>
+            <p className="text-gray-500 dark:text-gray-400 font-medium">{t('import_subtitle')}</p>
           </div>
         </div>
         
@@ -354,18 +350,17 @@ export const ScriptImport: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-5 space-y-4">
+      <div className="max-w-2xl mx-auto space-y-6">
           {/* Picker Compatto */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between shadow-xl">
+          <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 flex items-center justify-between shadow-xl">
             <div className="flex items-center gap-3 overflow-hidden mr-4">
-              <i className="fa-solid fa-file-pdf text-red-500 text-xl flex-shrink-0"></i>
-              <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
+              <i className="fa-solid fa-file-pdf text-red-500 text-2xl flex-shrink-0"></i>
+              <span className="text-base font-bold text-gray-900 dark:text-white truncate">
                 {selectedFile ? selectedFile.name : t('no_file_selected')}
               </span>
             </div>
             
-            <label className="bg-primary-600 px-6 py-2 rounded-xl text-xs font-black cursor-pointer hover:bg-primary-500 transition-all flex-shrink-0 active:scale-95 shadow-lg shadow-primary-900/20 text-white">
+            <label className="bg-blue-600 px-8 py-3 rounded-xl text-sm font-black cursor-pointer hover:bg-blue-500 transition-all flex-shrink-0 active:scale-95 shadow-lg shadow-blue-900/20 text-white uppercase">
               {t('browse')}
               <input 
                 ref={fileInputRef}
@@ -377,9 +372,7 @@ export const ScriptImport: React.FC = () => {
               />
             </label>
           </div>
-        </div>
 
-        <div className="lg:col-span-7 space-y-6">
           {/* AI Status Bar */}
           <AiStatusBar 
             status={importState} 
@@ -392,21 +385,11 @@ export const ScriptImport: React.FC = () => {
             <ResultsPreview summary={summary} previewData={previewData} />
           )}
 
-          {/* Debug Details */}
-          <DebugDetailsAccordion 
-            logs={logs} 
-            isOpen={isDetailsOpen} 
-            onToggle={() => setIsDetailsOpen(!isDetailsOpen)} 
-            error={error}
-            onClearLogs={() => setLogs([])}
-            onCheckEnv={checkServerEnv}
-          />
-
           {/* Manual Mode Separator */}
           <div className="pt-8 pb-4">
-            {/* Create Project Button (Only if analysis is done and no project selected, or even if selected but user wants new) */}
+            {/* Create Project Button (Only if analysis is done and no project selected) */}
             {importState === 'done' && !projectId && (
-                <div className="flex justify-end mb-8">
+                <div className="flex justify-center mb-8">
                     <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
                         <i className="fa-solid fa-plus"></i>
                         {t('create_project')}
@@ -425,20 +408,19 @@ export const ScriptImport: React.FC = () => {
           </div>
 
           {/* Manual CTA */}
-          <div className="bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-xl p-6 text-center space-y-4">
+          <div className="bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-2xl p-8 text-center space-y-4 shadow-sm">
             <div>
-              <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-1">{t('manual_creation_title')}</h3>
+              <h3 className="text-gray-900 dark:text-white font-bold text-2xl mb-2">{t('manual_creation_title')}</h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm">{t('manual_creation_desc')}</p>
             </div>
             <Button 
               variant="secondary" 
               onClick={() => navigate('/stripboard/manual/create')}
-              className="w-full py-3"
+              className="w-full py-4 text-base font-bold"
             >
               <i className="fa-solid fa-pen-to-square mr-2"></i> {t('create_new_pdl')}
             </Button>
           </div>
-        </div>
       </div>
 
       {showCreateModal && (

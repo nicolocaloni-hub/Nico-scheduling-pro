@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const modelId = 'gemini-3-flash-preview';
+    const modelId = 'gemini-3.1-flash-lite-preview';
     
     console.log(`[API] Avvio analisi con Gemini (${modelId})...`);
 
