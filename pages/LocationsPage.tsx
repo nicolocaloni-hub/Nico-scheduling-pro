@@ -9,7 +9,10 @@ export const LocationsPage: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) return navigate('/projects');
+    if (!pid) {
+      navigate('/projects');
+      return;
+    }
     
     db.getElements(pid).then(elements => {
       // Filter by category 'location' (lowercase) or similar.

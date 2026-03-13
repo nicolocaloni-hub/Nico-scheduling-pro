@@ -1,5 +1,5 @@
 
-import { Project, Scene, ProductionElement, Stripboard, ProductionType, Strip, ScriptVersion, CalendarEvent, ODGData } from "../types";
+import { Project, Scene, ProductionElement, Stripboard, ProductionType, Strip, ScriptVersion, CalendarEvent, ODGData, PrintSetup } from "../types";
 
 const LOCAL_STORAGE_KEY = 'nico_schedule_pro_db_v2';
 
@@ -269,7 +269,7 @@ export const db = {
     }
   },
 
-  savePrintSetup: async (projectId: string, setup: any): Promise<void> => {
+  savePrintSetup: async (projectId: string, setup: PrintSetup): Promise<void> => {
     const state = loadState();
     if (!state.analysisResults) state.analysisResults = {};
     if (!state.analysisResults[projectId]) state.analysisResults[projectId] = {};
@@ -277,7 +277,7 @@ export const db = {
     saveState(state);
   },
 
-  getPrintSetup: async (projectId: string): Promise<any> => {
+  getPrintSetup: async (projectId: string): Promise<PrintSetup | null> => {
     const state = loadState();
     return state.analysisResults?.[projectId]?.printSetup || null;
   },

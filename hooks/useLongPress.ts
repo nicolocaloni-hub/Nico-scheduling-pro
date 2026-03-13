@@ -9,9 +9,11 @@ interface UseLongPressOptions {
 export const useLongPress = ({ onLongPress, onClick, threshold = 1500 }: UseLongPressOptions) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
+  const isMoved = useRef(false);
 
   const start = useCallback((e: React.PointerEvent | React.TouchEvent) => {
     isLongPress.current = false;
+    isMoved.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       isLongPress.current = true;
@@ -20,7 +22,10 @@ export const useLongPress = ({ onLongPress, onClick, threshold = 1500 }: UseLong
     }, threshold);
   }, [onLongPress, threshold]);
 
-  const clear = useCallback(() => {
+  const clear = useCallback((e?: React.PointerEvent | React.TouchEvent) => {
+    if (e?.type === 'pointermove' || e?.type === 'touchmove') {
+      isMoved.current = true;
+    }
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -28,8 +33,9 @@ export const useLongPress = ({ onLongPress, onClick, threshold = 1500 }: UseLong
   }, []);
 
   const end = useCallback((e: React.PointerEvent | React.TouchEvent) => {
+    const wasMoved = isMoved.current;
     clear();
-    if (!isLongPress.current) {
+    if (!isLongPress.current && !wasMoved) {
       onClick();
     }
   }, [clear, onClick]);
@@ -37,9 +43,9 @@ export const useLongPress = ({ onLongPress, onClick, threshold = 1500 }: UseLong
   return {
     onPointerDown: start,
     onPointerUp: end,
-    onPointerLeave: clear,
-    onPointerCancel: clear,
-    onPointerMove: clear, // Add this to cancel on move
+    onPointerLeave: (e: any) => clear(e),
+    onPointerCancel: (e: any) => clear(e),
+    onPointerMove: (e: any) => clear(e),
     onContextMenu: (e: React.MouseEvent) => e.preventDefault()
   };
 };

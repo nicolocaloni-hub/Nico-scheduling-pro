@@ -35,7 +35,7 @@ export const LandingPage: React.FC = () => {
       {/* Settings Button */}
       <button 
         onClick={() => setShowSettings(true)}
-        className="fixed top-8 left-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-all active:scale-90 z-50 p-2"
+        className="fixed top-8 left-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-all z-50 p-2"
         title={t('settings') || 'Impostazioni'}
       >
         <Settings size={28} strokeWidth={1.2} />
@@ -59,7 +59,7 @@ export const LandingPage: React.FC = () => {
           {/* Smart Set Scheduling Pro Card */}
           <div 
             onClick={() => navigate('/projects')}
-            className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98] duration-200"
+            className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow duration-200"
           >
             <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center flex-shrink-0 text-blue-600 dark:text-blue-400">
               <Clapperboard size={32} strokeWidth={1.5} />
@@ -79,7 +79,7 @@ export const LandingPage: React.FC = () => {
           {/* ODG Card */}
           <div 
             onClick={() => navigate('/odg')}
-            className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98] duration-200"
+            className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow duration-200"
           >
             <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center flex-shrink-0 text-emerald-600 dark:text-emerald-400">
               <FileText size={32} strokeWidth={1.5} />

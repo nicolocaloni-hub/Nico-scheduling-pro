@@ -12,10 +12,10 @@ export const ManualStripboardCreate: React.FC = () => {
   
   // Current Scene State
   const [sceneNumber, setSceneNumber] = useState('');
-  const [intExt, setIntExt] = useState<IntExt>('INT.');
+  const [intExt, setIntExt] = useState<IntExt>(IntExt.INT);
   const [setName, setSetName] = useState('');
   const [locationName, setLocationName] = useState('');
-  const [dayNight, setDayNight] = useState<DayNight>('DAY');
+  const [dayNight, setDayNight] = useState<DayNight>(DayNight.DAY);
   const [pages, setPages] = useState('');
   const [synopsis, setSynopsis] = useState('');
   
@@ -33,7 +33,10 @@ export const ManualStripboardCreate: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) return navigate('/projects');
+    if (!pid) {
+      navigate('/projects');
+      return;
+    }
     setProjectId(pid);
     loadElements(pid);
     loadDraft(pid);

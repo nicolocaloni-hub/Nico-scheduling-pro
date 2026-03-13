@@ -6,7 +6,7 @@ const translations = {
   it: {
     // Layout
     nav_projects: 'Progetti',
-    nav_script: 'Copione',
+    nav_script: 'Sceneggiatura',
     nav_stripboard: 'Piano Lav.',
     nav_calendar: 'Calendario',
     

@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { CalendarDays, CalendarCheck } from 'lucide-react';
-import { Stripboard, Scene, Strip, ElementCategory, ProductionElement } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { CalendarDays, CalendarCheck, Printer, Settings, ChevronUp, ChevronDown } from 'lucide-react';
+import { Stripboard, Scene, Strip, ElementCategory, ProductionElement, PrintSetup } from '../types';
 import { db } from '../services/store';
 import { SceneEditorModal } from './SceneEditorModal';
 import { PrintSetupModal } from './PrintSetupModal';
@@ -9,6 +9,20 @@ import autoTable from 'jspdf-autotable';
 import { useTranslation } from '../services/i18n';
 import { useLongPress } from '../hooks/useLongPress';
 import { AddDayModal } from './AddDayModal';
+import { BreakdownModal } from './BreakdownModal';
+
+const getMovieMagicColor = (intExt: string, dayNight: string) => {
+  const ie = (intExt || '').toUpperCase();
+  const dn = (dayNight || '').toUpperCase();
+  
+  if (ie.includes('INT') && dn.includes('GIORNO')) return { bg: 'bg-white', text: 'text-gray-900', pdf: [255, 255, 255] };
+  if (ie.includes('EXT') && dn.includes('GIORNO')) return { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-900 dark:text-yellow-100', pdf: [255, 255, 200] };
+  if (ie.includes('INT') && dn.includes('NOTTE')) return { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-900 dark:text-green-100', pdf: [200, 255, 200] };
+  if (ie.includes('EXT') && dn.includes('NOTTE')) return { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-900 dark:text-blue-100', pdf: [200, 230, 255] };
+  if (dn.includes('MATTINA')) return { bg: 'bg-pink-50 dark:bg-pink-900/20', text: 'text-pink-900 dark:text-pink-100', pdf: [255, 220, 230] };
+  if (dn.includes('SERA')) return { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-900 dark:text-orange-100', pdf: [255, 230, 200] };
+  return null;
+};
 
 interface PlanAccordionItemProps {
   board: Stripboard;
@@ -39,8 +53,14 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
 }) => {
   const [editingScene, setEditingScene] = useState<Scene | null>(null);
   const [showPrintSetup, setShowPrintSetup] = useState(false);
+  const [showBreakdownModal, setShowBreakdownModal] = useState(false);
+  const [printSetup, setPrintSetup] = useState<PrintSetup | null>(null);
   const [showAddDayModal, setShowAddDayModal] = useState(false);
   const { t } = useTranslation();
+
+  useEffect(() => {
+    db.getPrintSetup(board.projectId).then(setPrintSetup);
+  }, [board.projectId, showPrintSetup]);
 
   const handleDelete = () => {
     console.log(`longPress/delete triggered for plan ${board.id}`);
@@ -110,9 +130,9 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
   }, [board, scenes, project]);
 
   const generatePDF = async () => {
-    const doc = new jsPDF();
     const setup = await db.getPrintSetup(board.projectId);
-    const title = setup?.projectTitle || projectName || "Piano di Lavorazione";
+    const doc = new jsPDF();
+    const title = board.name;
     
     // 1. Cast Page
     doc.setFontSize(18);
@@ -120,8 +140,8 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
     doc.setFontSize(12);
     doc.text(title, 14, 30);
     
-    const elements = await db.getElements(board.projectId);
-    const cast = elements.filter(e => e.category === ElementCategory.Cast);
+    const allElements = await db.getElements(board.projectId);
+    const cast = allElements.filter(e => e.category === ElementCategory.Cast);
     const castData = cast.map((c, i) => [i + 1, c.name]);
     
     autoTable(doc, {
@@ -147,6 +167,22 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
       const dayLabel = s.shootDay ? new Date(s.shootDay).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : (projectName || 'NON PROGRAMMATO');
       
       if (dayLabel !== currentDayLabel) {
+        // Extra Banners (Time/Pause)
+        if (setup?.includeExtraBanners) {
+          const dayKey = s.shootDay || '';
+          const daySetting = setup.daySettings?.[dayKey];
+          const startTime = daySetting?.startTime || '10:00';
+          const endTime = daySetting?.endTime || '19:00';
+          const pauseStart = daySetting?.pauseStart || '14:00';
+          const pauseEnd = daySetting?.pauseEnd || '15:00';
+
+          rows.push([{ 
+            content: `${startTime} / ${endTime} - PAUSA ${pauseStart}/${pauseEnd}`, 
+            colSpan: 6, 
+            styles: { fillColor: [240, 240, 240], fontStyle: 'italic', halign: 'center', fontSize: 10 } 
+          }]);
+        }
+        
         rows.push([{ content: dayLabel.toUpperCase(), colSpan: 6, styles: { fillColor: [200, 200, 200], fontStyle: 'bold', halign: 'center' } }]);
         currentDayLabel = dayLabel;
       }
@@ -159,14 +195,25 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
         .filter(id => id !== null)
         .join(', ');
 
-      rows.push([
+      const shortSynopsis = s.synopsis ? (s.synopsis.length > 80 ? s.synopsis.substring(0, 80).trim() + '...' : s.synopsis) : '';
+
+      const rowData: any = [
         s.sceneNumber,
         s.intExt,
-        `${s.slugline}${s.synopsis ? '\n' + s.synopsis : ''}`,
+        `${s.slugline}${shortSynopsis ? '\n' + shortSynopsis : ''}`,
         s.dayNight,
         s.pageCountInEighths,
         castIds
-      ]);
+      ];
+
+      if (setup?.useMovieMagicColors) {
+        const mmColor = getMovieMagicColor(s.intExt, s.dayNight);
+        if (mmColor) {
+          rowData.movieMagicColor = mmColor.pdf;
+        }
+      }
+
+      rows.push(rowData);
     });
 
     autoTable(doc, {
@@ -176,6 +223,12 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
       styles: { cellPadding: 3, valign: 'middle' },
       columnStyles: {
         2: { cellWidth: 'auto' } // Ensure description column takes available space
+      },
+      didParseCell: (data) => {
+        const row: any = data.row.raw;
+        if (row && row.movieMagicColor) {
+          data.cell.styles.fillColor = row.movieMagicColor;
+        }
       }
     });
 
@@ -396,43 +449,44 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
         .map(e => e!.name)
         .join(', ');
 
+    const mmColor = printSetup?.useMovieMagicColors ? getMovieMagicColor(scene.intExt, scene.dayNight) : null;
+
     return (
         <div 
         key={strip.id} 
         onClick={() => setEditingScene(scene)}
-        className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 flex justify-between items-center hover:border-primary-500 dark:hover:border-primary-500 cursor-pointer shadow-sm overflow-hidden mb-2"
+        className={`p-3 rounded border flex justify-between items-center hover:border-primary-500 dark:hover:border-primary-500 cursor-pointer shadow-sm overflow-hidden mb-2 transition-colors ${mmColor ? `${mmColor.bg} border-gray-300 dark:border-gray-600` : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}
         >
         <div className="flex items-center gap-1 w-full">
             <div className="flex flex-col gap-0 shrink-0">
             <button 
                 onClick={(e) => { e.stopPropagation(); moveStrip(strip.id, 'up'); }}
-                className="text-lg hover:scale-110 transition-transform disabled:opacity-30 p-0.5 leading-none"
+                className="text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400 hover:scale-110 transition-all disabled:opacity-30 p-0.5 leading-none"
                 disabled={!canMoveUp}
                 aria-label="Sposta su"
             >
-                ⬆️
+                <ChevronUp size={20} strokeWidth={2.5} />
             </button>
             <button 
                 onClick={(e) => { e.stopPropagation(); moveStrip(strip.id, 'down'); }}
-                className="text-lg hover:scale-110 transition-transform disabled:opacity-30 p-0.5 leading-none"
+                className="text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400 hover:scale-110 transition-all disabled:opacity-30 p-0.5 leading-none"
                 disabled={!canMoveDown}
                 aria-label="Sposta giù"
             >
-                ⬇️
+                <ChevronDown size={20} strokeWidth={2.5} />
             </button>
             </div>
-            {/* ... rest of render ... */}
-            <span className="font-bold text-gray-900 dark:text-white w-6 text-center shrink-0">{scene.sceneNumber}</span>
+            <span className={`font-bold w-6 text-center shrink-0 ${mmColor ? mmColor.text : 'text-gray-900 dark:text-white'}`}>{scene.sceneNumber}</span>
             <div className="flex-1 min-w-0 ml-1">
-            <div className="text-xs font-bold text-gray-700 dark:text-gray-300 truncate">
+            <div className={`text-xs font-bold truncate ${mmColor ? mmColor.text : 'text-gray-700 dark:text-gray-300'}`}>
                 {scene.intExt} {scene.setName} - {scene.dayNight}
             </div>
-            <div className="text-[10px] text-gray-500 truncate">
+            <div className={`text-[10px] truncate ${mmColor ? mmColor.text : 'text-gray-500'}`}>
                 {scene.synopsis}
             </div>
             {castNames && (
-                <div className="text-[10px] text-primary-600 dark:text-primary-400 truncate mt-0.5 font-medium">
-                    <i className="fa-solid fa-user-group mr-1"></i>{castNames}
+                <div className={`text-[10px] truncate mt-0.5 font-medium ${mmColor ? mmColor.text : 'text-primary-600 dark:text-primary-400'}`}>
+                    {castNames}
                 </div>
             )}
             </div>
@@ -468,16 +522,30 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
 
       {isOpen && (
         <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
-           <div className="flex gap-2 mb-4 justify-end">
-             <button onClick={() => setShowAddDayModal(true)} className="text-primary-600 hover:text-primary-700 text-xs font-bold uppercase tracking-wider px-3 py-2 border border-primary-200 rounded hover:bg-primary-50">
+           <div className="flex gap-3 mb-6 items-center justify-center">
+             <button 
+               onClick={() => setShowAddDayModal(true)} 
+               className="text-primary-600 hover:text-primary-700 text-[10px] font-bold uppercase tracking-wider px-3 py-2 border border-primary-200 rounded-xl hover:bg-primary-50 transition-all"
+             >
                 + Aggiungi Giorni
              </button>
-             <button onClick={() => setShowPrintSetup(true)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-2">
-               <i className="fa-solid fa-gear"></i>
+             
+             <button 
+               onClick={() => setShowBreakdownModal(true)}
+               className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
+             >
+               Genera Spoglio
              </button>
-             <button onClick={generatePDF} className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-2 rounded flex items-center gap-2">
-               <i className="fa-solid fa-file-pdf"></i> {t('download_pdf')}
-             </button>
+
+             <div className="flex items-center gap-2">
+               <button 
+                 onClick={() => setShowPrintSetup(true)} 
+                 className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-all" 
+                 title={t('download_pdf')}
+               >
+                 <Printer size={20} strokeWidth={2} />
+               </button>
+             </div>
            </div>
 
            <div className="space-y-6">
@@ -520,7 +588,9 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
       {showPrintSetup && (
         <PrintSetupModal 
           projectId={board.projectId}
+          availableDays={allDays}
           onClose={() => setShowPrintSetup(false)}
+          onPrint={generatePDF}
         />
       )}
 
@@ -528,6 +598,16 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
         <AddDayModal 
             onClose={() => setShowAddDayModal(false)}
             onSave={handleSaveDays}
+        />
+      )}
+
+      {showBreakdownModal && (
+        <BreakdownModal 
+          board={board}
+          scenes={scenes}
+          elements={elements}
+          projectName={projectName}
+          onClose={() => setShowBreakdownModal(false)}
         />
       )}
     </div>

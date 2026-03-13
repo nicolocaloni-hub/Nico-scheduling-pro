@@ -59,7 +59,7 @@ export const AiStatusBar: React.FC<AiStatusBarProps> = ({ status, fileName, mode
         {/* Status Indicator */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {(status === 'uploading' || status === 'analyzing') && (
-            <div className="w-2 h-2 rounded-full bg-current animate-ping" />
+            <div className="w-2 h-2 rounded-full bg-current opacity-70" />
           )}
           <span className="text-xs font-black tracking-widest uppercase">
             {getStatusLabel()}

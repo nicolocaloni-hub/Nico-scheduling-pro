@@ -18,7 +18,10 @@ export const PropsPage: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) return navigate('/projects');
+    if (!pid) {
+      navigate('/projects');
+      return;
+    }
     setProjectId(pid);
     loadProps(pid);
   }, [navigate]);

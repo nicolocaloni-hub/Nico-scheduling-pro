@@ -460,11 +460,11 @@ export const ODGPage: React.FC = () => {
               className="bg-gray-100 dark:bg-gray-800 border-none rounded-lg text-sm font-bold p-2 focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <Button variant="outline" onClick={syncFromPdl} className="h-10" title="Sincronizza scene e cast dal PDL">
+          <Button variant="secondary" onClick={syncFromPdl} className="h-10" title="Sincronizza scene e cast dal PDL">
             <RefreshCw size={18} />
             <span className="hidden md:inline">Sincronizza</span>
           </Button>
-          <Button variant="outline" onClick={handleSave} disabled={saving} className="h-10">
+          <Button variant="secondary" onClick={handleSave} disabled={saving} className="h-10">
             <Save size={18} className={saving ? 'animate-spin' : ''} />
             <span className="hidden md:inline">{saving ? 'Salvataggio...' : 'Salva'}</span>
           </Button>
@@ -1054,7 +1054,7 @@ export const ODGPage: React.FC = () => {
               <p className="text-gray-500 dark:text-gray-400 text-sm">Verifica i dati e genera il PDF professionale da condividere con la troupe.</p>
             </div>
             <div className="flex gap-4">
-              <Button onClick={handleSave} variant="outline" disabled={saving} className="h-12 px-8">
+              <Button onClick={handleSave} variant="secondary" disabled={saving} className="h-12 px-8">
                 <Save size={18} />
                 <span>{saving ? 'Salvataggio...' : 'Salva'}</span>
               </Button>

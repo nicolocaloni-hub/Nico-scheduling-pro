@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 import { db } from '../services/store';
 import { Scene, ProductionElement, ElementCategory, IntExt, DayNight, ProductionType } from '../types';
 import { Button } from '../components/Button';
@@ -258,10 +257,30 @@ export const ScriptImport: React.FC = () => {
         name: el.name,
         category: el.category as ElementCategory
       };
-      elementsMap[el.name] = newEl;
+      elementsMap[el.name.toLowerCase()] = newEl;
       return newEl;
     });
-    await db.saveElements(targetProjectId, elements);
+
+    // Check for elements in sceneElements that are not in elementsMap
+    const additionalElements: ProductionElement[] = [];
+    (data.scenes || []).forEach((s: any) => {
+      const elementNames = data.sceneElements?.[s.sceneNumber] || [];
+      elementNames.forEach((name: string) => {
+        if (name && !elementsMap[name.toLowerCase()]) {
+          const newEl: ProductionElement = {
+            id: crypto.randomUUID(),
+            projectId: targetProjectId,
+            name: name,
+            category: ElementCategory.Cast // Default to Cast if unknown
+          };
+          elementsMap[name.toLowerCase()] = newEl;
+          additionalElements.push(newEl);
+        }
+      });
+    });
+
+    const allElementsToSave = [...elements, ...additionalElements];
+    await db.saveElements(targetProjectId, allElementsToSave);
 
     // Get project to check for shootDays
     const projects = await db.getProjects();
@@ -271,7 +290,7 @@ export const ScriptImport: React.FC = () => {
 
     const scenes: Scene[] = (data.scenes || []).map((s: any, index: number) => {
       const elementNames = data.sceneElements?.[s.sceneNumber] || [];
-      const elementIds = elementNames.map((name: string) => elementsMap[name]?.id).filter((id: any) => !!id) as string[];
+      const elementIds = elementNames.map((name: string) => elementsMap[name.toLowerCase()]?.id).filter((id: any) => !!id) as string[];
 
       // Distribute scenes to days if shootDays exist
       let assignedDay = undefined;
@@ -315,13 +334,6 @@ export const ScriptImport: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-8 py-8 px-4">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <button 
-              onClick={() => navigate('/projects')}
-              className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-              title="Torna ai Progetti"
-          >
-              <ArrowLeft size={24} />
-          </button>
           <div>
             <h1 className="text-4xl font-black text-gray-900 dark:text-white leading-tight">{t('import_title')}</h1>
             <p className="text-gray-500 dark:text-gray-400 font-medium">{t('import_subtitle')}</p>
@@ -329,8 +341,14 @@ export const ScriptImport: React.FC = () => {
         </div>
         
         <div className="flex gap-3">
-          {importState === 'selected' && (
-            <Button onClick={startAnalysis} type="button">{t('start_analysis')}</Button>
+          {(importState === 'selected' || importState === 'uploading' || importState === 'analyzing') && (
+            <Button 
+              onClick={startAnalysis} 
+              type="button"
+              disabled={importState === 'uploading' || importState === 'analyzing'}
+            >
+              {importState === 'selected' ? t('start_analysis') : 'Attendere...'}
+            </Button>
           )}
           {importState === 'done' && (
             <div className="flex flex-col items-end gap-1">
@@ -360,7 +378,7 @@ export const ScriptImport: React.FC = () => {
               </span>
             </div>
             
-            <label className="bg-blue-600 px-8 py-3 rounded-xl text-sm font-black cursor-pointer hover:bg-blue-500 transition-all flex-shrink-0 active:scale-95 shadow-lg shadow-blue-900/20 text-white uppercase">
+            <label className="bg-blue-600 px-8 py-3 rounded-xl text-sm font-black cursor-pointer hover:bg-blue-500 transition-all flex-shrink-0 shadow-lg shadow-blue-900/20 text-white uppercase">
               {t('browse')}
               <input 
                 ref={fileInputRef}

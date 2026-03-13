@@ -112,7 +112,7 @@ export const CalendarPage: React.FC = () => {
             <div 
               key={day} 
               onClick={() => handleDayClick(day)}
-              className={`aspect-square rounded-xl border flex flex-col items-center justify-start pt-2 cursor-pointer relative transition-all active:scale-95 ${
+              className={`aspect-square rounded-xl border flex flex-col items-center justify-start pt-2 cursor-pointer relative transition-all ${
                 isToday 
                   ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-500 text-primary-900 dark:text-white' 
                   : isProjectDay

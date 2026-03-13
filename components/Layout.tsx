@@ -57,9 +57,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Desktop Side Nav */}
       <nav className="hidden md:flex flex-col fixed left-0 top-0 h-full w-20 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 z-50 transition-colors duration-300">
         <div className="flex-1 flex flex-col items-center py-6 gap-8">
-           <button onClick={() => navigate('/')} className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center font-bold text-xl text-white hover:bg-primary-700 transition-colors">N</button>
+           <button type="button" onClick={() => navigate('/')} className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center font-bold text-xl text-white hover:bg-primary-700 transition-colors">N</button>
            {navItems.map((item) => (
              <button
+               type="button"
                key={item.path}
                onClick={() => navigate(item.path)}
                className={`p-3 rounded-xl transition-colors ${isCurrent(item.path) ? 'bg-primary-50 dark:bg-gray-800 text-primary-600 dark:text-primary-500' : 'text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-white'}`}
@@ -81,6 +82,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="flex justify-around items-center h-16">
           {navItems.map((item) => (
              <button
+               type="button"
                key={item.path}
                onClick={() => navigate(item.path)}
                className={`flex flex-col items-center justify-center w-16 h-full space-y-1 relative ${isCurrent(item.path) ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}

@@ -32,7 +32,7 @@ export const analyzeScriptPdf = async (
   onDebugInfo?: (info: any) => void
 ): Promise<{ data: BreakdownResult, summary: any, modelUsed: string }> => {
   
-  const modelId = 'gemini-3.1-flash-lite-preview'; // Using flash lite for cost optimization
+  const modelId = 'gemini-3.1-pro-preview'; // Using pro for better script analysis
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
   const systemInstruction = `Sei un esperto assistente alla regia (AD) con anni di esperienza nello spoglio di sceneggiature.
@@ -62,6 +62,8 @@ Il tuo compito è analizzare la sceneggiatura PDF fornita e produrre un breakdow
    - **Effetti Visivi (VFX)**: Elementi da aggiungere in post-produzione (es. "mostro alieno", "schermo olografico").
    - **Animali**: Cani, gatti, cavalli, etc.
    - **Suono**: Rumori specifici indicati nel testo (es. "suono di sirena", "battito cardiaco").
+
+3. **Mappatura Elementi-Scene (sceneElements)**: È FONDAMENTALE che tu colleghi ogni elemento estratto alla scena in cui compare. Nel campo \`sceneElements\`, crea una mappa dove la chiave è il \`sceneNumber\` e il valore è un array con i nomi esatti degli elementi (incluso il Cast) presenti in quella scena. Questo permetterà di avere i personaggi e gli oggetti già assegnati alle scene nel piano di lavorazione.
 
 Sii meticoloso. Se un oggetto è importante per l'azione o menzionato nella descrizione, DEVE essere listato come elemento. Usa la categoria "Props" per gli oggetti di scena.`;
 

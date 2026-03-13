@@ -61,7 +61,7 @@ export const ResultsPreview: React.FC<ResultsPreviewProps> = ({ summary, preview
 const StatCard = ({ label, value, emoji, color, onClick }: { label: string, value: number, emoji: string, color: string, onClick: () => void }) => (
   <div 
     onClick={onClick}
-    className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex items-center justify-between shadow-lg cursor-pointer hover:bg-gray-700 transition-all active:scale-95"
+    className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex items-center justify-between shadow-lg cursor-pointer hover:bg-gray-700 transition-all"
   >
     <div>
       <p className="text-2xl font-black text-white">{value}</p>

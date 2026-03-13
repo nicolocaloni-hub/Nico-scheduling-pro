@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
 import { Scene } from '../types';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
 export const ScenesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -9,7 +10,10 @@ export const ScenesPage: React.FC = () => {
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
-    if (!pid) return navigate('/projects');
+    if (!pid) {
+      navigate('/projects');
+      return;
+    }
     db.getProjectScenes(pid).then(setScenes);
   }, [navigate]);
 
@@ -55,22 +59,22 @@ export const ScenesPage: React.FC = () => {
                       e.stopPropagation();
                       moveScene(idx, 'up');
                     }}
-                    className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-700 hover:bg-primary-600 rounded-lg text-lg hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-100 dark:disabled:hover:bg-gray-700"
+                    className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-700 hover:bg-primary-600 rounded-lg text-gray-500 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-100 dark:disabled:hover:bg-gray-700"
                     disabled={idx === 0}
                     aria-label="Sposta scena su"
                 >
-                    ⬆️
+                    <ChevronUp size={20} strokeWidth={2.5} />
                 </button>
                 <button 
                     onClick={(e) => {
                       e.stopPropagation();
                       moveScene(idx, 'down');
                     }}
-                    className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-700 hover:bg-primary-600 rounded-lg text-lg hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-100 dark:disabled:hover:bg-gray-700"
+                    className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-700 hover:bg-primary-600 rounded-lg text-gray-500 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-100 dark:disabled:hover:bg-gray-700"
                     disabled={idx === scenes.length - 1}
                     aria-label="Sposta scena giù"
                 >
-                    ⬇️
+                    <ChevronDown size={20} strokeWidth={2.5} />
                 </button>
               </div>
 

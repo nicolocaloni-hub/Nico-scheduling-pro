@@ -58,12 +58,14 @@ export enum ElementCategory {
   SFX = 'Effetti Speciali (SFX)',
   VFX = 'Effetti Visivi (VFX)',
   Wardrobe = 'Costumi',
+  MakeupHair = 'Trucco/Acconciatura',
   Animals = 'Animali',
   Greenery = 'Greenery',
   Security = 'Sicurezza',
   Music = 'Musica',
   Sound = 'Suono',
   Camera = 'Macchina da Presa',
+  SpecialEquipment = 'Equipaggiamento Speciale',
   Stunt = 'Stunt'
 }
 
@@ -82,6 +84,21 @@ export interface ScriptVersion {
   fileUrl: string; 
   version: number;
   createdAt: string;
+}
+
+export interface DayPrintSettings {
+  startTime?: string;
+  endTime?: string;
+  pauseStart?: string;
+  pauseEnd?: string;
+}
+
+export interface PrintSetup {
+  showTime?: boolean;
+  includeExtraBanners?: boolean;
+  useMovieMagicColors?: boolean;
+  dayLabels?: string[];
+  daySettings?: Record<string, DayPrintSettings>; // key is the date YYYY-MM-DD
 }
 
 export interface Strip {
