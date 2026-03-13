@@ -179,6 +179,7 @@ export interface ODGCallEntry {
   id: string;
   role: string;
   name: string;
+  department?: string;
   scenes?: string;
   pickupTime?: string;
   makeupTime?: string;
@@ -248,4 +249,5 @@ export interface ODGData {
   photographyNotes?: string;
   regiaNotes?: string;
   animaliNotes?: string;
+  productionLogo?: string;
 }

@@ -100,21 +100,16 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
       onSave(finalData);
   };
 
-  const castMembers = elements.filter(e => e.category === ElementCategory.Cast || (e.category || '').toLowerCase() === 'character');
-  
-  const propsElements = elements.filter(e => {
-    const cat = (e.category || '').toLowerCase();
-    return (
-      cat === 'props' || 
-      cat === 'prop' || 
-      cat.includes('oggetti') || 
-      cat.includes('attrezzeria') || 
-      e.category === ElementCategory.Props
-    );
-  });
-
-  const tempCast = tempElements.filter(e => e.category === ElementCategory.Cast);
-  const tempProps = tempElements.filter(e => e.category === ElementCategory.Props);
+  const categoriesToEdit = [
+    { key: ElementCategory.Cast, label: 'Cast' },
+    { key: ElementCategory.Background, label: 'Comparse (Background)' },
+    { key: ElementCategory.Stunt, label: 'Stunt' },
+    { key: ElementCategory.Vehicles, label: 'Veicoli' },
+    { key: ElementCategory.Props, label: 'Props / Attrezzeria' },
+    { key: ElementCategory.Wardrobe, label: 'Costumi' },
+    { key: ElementCategory.MakeupHair, label: 'Trucco / Acconciatura' },
+    { key: ElementCategory.SFX, label: 'Effetti Speciali (SFX)' },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -188,125 +183,81 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
             />
           </div>
 
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase leading-none">Cast</label>
-                <button 
-                    onClick={() => handleAddTempElement(ElementCategory.Cast)}
-                    className="w-4 h-4 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                    title="Aggiungi Cast"
-                >
-                    <Plus className="w-3 h-3" strokeWidth={3} />
-                </button>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
-                {castMembers.map(member => (
-                    <div key={member.id} className="flex items-center gap-2 py-1 group justify-between">
-                        <div className="flex items-center gap-2">
-                            <input 
-                                type="checkbox" 
-                                id={`cast-${member.id}`}
-                                checked={(data.elementIds || []).includes(member.id)}
-                                onChange={() => toggleElement(member.id)}
-                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                            />
-                            <label htmlFor={`cast-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
-                                {member.name}
-                            </label>
-                        </div>
-                        <button 
-                            onClick={() => handleDeleteClick(member)}
-                            className="text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
-                            title="Elimina personaggio"
-                        >
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-                ))}
-                {tempCast.map(member => (
-                    <div key={member.id} className="flex items-center gap-2 py-1 animate-in fade-in slide-in-from-left-2">
-                        <input 
-                            type="checkbox" 
-                            id={`cast-${member.id}`}
-                            checked={(data.elementIds || []).includes(member.id)}
-                            onChange={() => toggleElement(member.id)}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                        />
-                        <input 
-                            type="text"
-                            value={member.name}
-                            onChange={(e) => handleTempElementChange(member.id, e.target.value)}
-                            className="flex-1 text-sm border-b border-gray-300 dark:border-gray-600 focus:border-primary-500 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400"
-                            placeholder="Nome personaggio..."
-                            autoFocus
-                        />
-                    </div>
-                ))}
-                {castMembers.length === 0 && tempCast.length === 0 && (
-                    <div className="text-xs text-gray-400 italic text-center py-2">Nessun membro del cast</div>
-                )}
-            </div>
-          </div>
+          {categoriesToEdit.map(category => {
+            const catElements = elements.filter(e => {
+              if (category.key === ElementCategory.Cast) {
+                return e.category === ElementCategory.Cast || (e.category || '').toLowerCase() === 'character';
+              }
+              if (category.key === ElementCategory.Props) {
+                const cat = (e.category || '').toLowerCase();
+                return cat === 'props' || cat === 'prop' || cat.includes('oggetti') || cat.includes('attrezzeria') || e.category === ElementCategory.Props;
+              }
+              return e.category === category.key;
+            });
+            const catTempElements = tempElements.filter(e => e.category === category.key);
 
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase leading-none">Props</label>
-                <button 
-                    onClick={() => handleAddTempElement(ElementCategory.Props)}
-                    className="w-4 h-4 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                    title="Aggiungi Prop"
-                >
-                    <Plus className="w-3 h-3" strokeWidth={3} />
-                </button>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
-                {propsElements.map(member => (
-                    <div key={member.id} className="flex items-center gap-2 py-1 group justify-between">
-                        <div className="flex items-center gap-2">
+            return (
+              <div key={category.key}>
+                <div className="flex items-center gap-2 mb-1">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase leading-none">{category.label}</label>
+                    <button 
+                        onClick={() => handleAddTempElement(category.key)}
+                        className="w-4 h-4 rounded-full border border-blue-500 text-blue-500 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                        title={`Aggiungi ${category.label}`}
+                    >
+                        <Plus className="w-3 h-3" strokeWidth={3} />
+                    </button>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-2 max-h-40 overflow-y-auto">
+                    {catElements.map(member => (
+                        <div key={member.id} className="flex items-center gap-2 py-1 group justify-between">
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="checkbox" 
+                                    id={`el-${member.id}`}
+                                    checked={(data.elementIds || []).includes(member.id)}
+                                    onChange={() => toggleElement(member.id)}
+                                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                />
+                                <label htmlFor={`el-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
+                                    {member.name}
+                                </label>
+                            </div>
+                            <button 
+                                onClick={() => handleDeleteClick(member)}
+                                className="text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                                title="Elimina elemento"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    ))}
+                    {catTempElements.map(member => (
+                        <div key={member.id} className="flex items-center gap-2 py-1 animate-in fade-in slide-in-from-left-2">
                             <input 
                                 type="checkbox" 
-                                id={`prop-${member.id}`}
+                                id={`el-${member.id}`}
                                 checked={(data.elementIds || []).includes(member.id)}
                                 onChange={() => toggleElement(member.id)}
                                 className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                             />
-                            <label htmlFor={`prop-${member.id}`} className="text-sm text-gray-900 dark:text-white cursor-pointer select-none">
-                                {member.name}
-                            </label>
+                            <input 
+                                type="text"
+                                value={member.name}
+                                onChange={(e) => handleTempElementChange(member.id, e.target.value)}
+                                className="flex-1 text-sm border-b border-gray-300 dark:border-gray-600 focus:border-primary-500 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400"
+                                placeholder={`Nome ${category.label.toLowerCase()}...`}
+                                autoFocus
+                            />
                         </div>
-                        <button 
-                            onClick={() => handleDeleteClick(member)}
-                            className="text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
-                            title="Elimina prop"
-                        >
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-                ))}
-                {tempProps.map(member => (
-                    <div key={member.id} className="flex items-center gap-2 py-1 animate-in fade-in slide-in-from-left-2">
-                        <input 
-                            type="checkbox" 
-                            id={`prop-${member.id}`}
-                            checked={(data.elementIds || []).includes(member.id)}
-                            onChange={() => toggleElement(member.id)}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                        />
-                        <input 
-                            type="text"
-                            value={member.name}
-                            onChange={(e) => handleTempElementChange(member.id, e.target.value)}
-                            className="flex-1 text-sm border-b border-gray-300 dark:border-gray-600 focus:border-primary-500 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400"
-                            placeholder="Nome oggetto..."
-                            autoFocus
-                        />
-                    </div>
-                ))}
-                {propsElements.length === 0 && tempProps.length === 0 && (
-                    <div className="text-xs text-gray-400 italic text-center py-2">Nessun prop</div>
-                )}
-            </div>
-          </div>
+                    ))}
+                    {catElements.length === 0 && catTempElements.length === 0 && (
+                        <div className="text-xs text-gray-400 italic text-center py-2">Nessun elemento</div>
+                    )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex gap-3 mt-6">
@@ -319,7 +270,7 @@ export const SceneEditorModal: React.FC<SceneEditorModalProps> = ({ scene, eleme
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 text-center">
-                        Elimina {elementToDelete.category === ElementCategory.Cast ? 'Personaggio' : 'Prop'}
+                        Elimina Elemento
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
                         Sei sicuro di voler eliminare <span className="font-bold text-gray-900 dark:text-white">{elementToDelete.name}</span>?

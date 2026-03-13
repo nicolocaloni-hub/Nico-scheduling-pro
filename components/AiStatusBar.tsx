@@ -37,7 +37,7 @@ export const AiStatusBar: React.FC<AiStatusBarProps> = ({ status, fileName, mode
       case 'analyzing': return 'ANALISI AI IN CORSO...';
       case 'done': return 'COMPLETATO';
       case 'error': return 'ERRORE';
-      default: return status.toUpperCase();
+      default: return (status as string).toUpperCase();
     }
   };
 

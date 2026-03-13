@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
 import { Project, Scene, ODGData, ODGSceneEntry, ODGCallEntry, ElementCategory, ProductionElement } from '../types';
@@ -12,6 +12,18 @@ import { ODGPrintTemplate } from '../components/ODGPrintTemplate';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+const CREW_DEPARTMENTS: Record<string, string[]> = {
+  'REGIA': ['Regista', 'Aiuto Regista', 'Assistente alla Regia', "Segretaria d'edizione"],
+  'PRODUZIONE': ['Produttore Esecutivo', 'Organizzatrice di Produzione', 'Direttrice di Produzione', 'Runner'],
+  'FOTOGRAFIA': ['DOP', 'Operatore (Steady)', 'Assistente Operatore', 'Aiuto Operatore', 'Video assist', 'Fotografo di Scena'],
+  'ELETTRICISTI': ['Gaffer', 'Elettricista', 'Grip'],
+  'COSTUMI': ['Costumista'],
+  'TRUCCO': ['Truccatrice'],
+  'SCENOGRAFIA': ['Scenografa', 'Aiuto Scenografia'],
+  'SUONO': ['Fonico', 'Microfonista'],
+  'VFX': ['Supervisore effetti visivi']
+};
+
 export const ODGPage: React.FC = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -20,6 +32,9 @@ export const ODGPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showCrewModal, setShowCrewModal] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // ODG State
   const [odgData, setOdgData] = useState<ODGData | null>(null);
@@ -207,6 +222,17 @@ export const ODGPage: React.FC = () => {
     setOdgData({ ...odgData, [field]: value });
   };
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && odgData) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateField('productionLogo', reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const addCallEntry = (type: 'cast' | 'crew') => {
     if (!odgData) return;
     const newEntry: ODGCallEntry = {
@@ -358,13 +384,6 @@ export const ODGPage: React.FC = () => {
     if (!element) return;
 
     try {
-      // Temporarily show the template for capture
-      element.style.display = 'block';
-      element.style.position = 'fixed';
-      element.style.left = '-9999px';
-      element.style.top = '0';
-      element.style.zIndex = '9999';
-
       // Small delay to ensure rendering is complete
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -397,15 +416,20 @@ export const ODGPage: React.FC = () => {
         finalHeight = pdfHeight;
       }
 
-      // If it's longer than one page, we might need multiple pages, 
-      // but for now let's just add it to one page or scale it.
-      // Using 'FAST' compression and ensuring all arguments are valid numbers
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, finalHeight, undefined, 'FAST');
+      let heightLeft = finalHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, finalHeight, undefined, 'FAST');
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - finalHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, finalHeight, undefined, 'FAST');
+        heightLeft -= pdfHeight;
+      }
       
       pdf.save(`ODG_${odgData.projectName}_${odgData.date}.pdf`);
-
-      // Hide template again
-      element.style.display = 'none';
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Errore durante la generazione del PDF. Riprova.');
@@ -479,11 +503,51 @@ export const ODGPage: React.FC = () => {
         <div className="space-y-10">
           {/* Sezione 1: Info Generali */}
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-gray-900 dark:text-white font-black uppercase tracking-tight">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
-                <Info size={18} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-gray-900 dark:text-white font-black uppercase tracking-tight">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+                  <Info size={18} />
+                </div>
+                <h2>Info Generali Set</h2>
               </div>
-              <h2>Info Generali Set</h2>
+              
+              <div className="flex items-center gap-4">
+                {odgData.productionLogo && (
+                  <div className="w-12 h-12 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden bg-white shadow-sm">
+                    <img src={odgData.productionLogo} alt="Logo" className="w-full h-full object-contain" />
+                  </div>
+                )}
+                
+                <div className="flex items-end gap-2">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">carica logo produzione</span>
+                    <input 
+                      type="file" 
+                      ref={logoInputRef} 
+                      onChange={handleLogoUpload} 
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => logoInputRef.current?.click()}
+                      className="h-10 w-10 p-0 rounded-xl border-orange-500/20 hover:border-orange-500/50"
+                    >
+                      <Plus size={20} />
+                    </Button>
+                  </div>
+                  
+                  {odgData.productionLogo && (
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => updateField('productionLogo', undefined)}
+                      className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      <Trash2 size={18} />
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
               <div className="space-y-1">
@@ -672,7 +736,37 @@ export const ODGPage: React.FC = () => {
                   type="text" 
                   value={odgData.dop || ''} 
                   onChange={(e) => updateField('dop', e.target.value)} 
-                  placeholder="es. Nome e cognome, Numero di Telefono"
+                  placeholder="es. Nome e cognome"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-2 text-xs" 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Fonico</label>
+                <input 
+                  type="text" 
+                  value={odgData.soundMixer || ''} 
+                  onChange={(e) => updateField('soundMixer', e.target.value)} 
+                  placeholder="es. Nome e cognome"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-2 text-xs" 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Scenografia</label>
+                <input 
+                  type="text" 
+                  value={odgData.productionDesigner || ''} 
+                  onChange={(e) => updateField('productionDesigner', e.target.value)} 
+                  placeholder="es. Nome e cognome"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-2 text-xs" 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Costumista</label>
+                <input 
+                  type="text" 
+                  value={odgData.costumeDesigner || ''} 
+                  onChange={(e) => updateField('costumeDesigner', e.target.value)} 
+                  placeholder="es. Nome e cognome"
                   className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-2 text-xs" 
                 />
               </div>
@@ -685,6 +779,13 @@ export const ODGPage: React.FC = () => {
                   placeholder="pioggia, nuvoloso, soleggiato ecc."
                   className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-2 text-xs" 
                 />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Temperatura (Max / Min)</label>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Max" value={odgData.weatherMaxTemp || ''} onChange={(e) => updateField('weatherMaxTemp', e.target.value)} className="w-1/2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-2 text-xs" />
+                  <input type="text" placeholder="Min" value={odgData.weatherMinTemp || ''} onChange={(e) => updateField('weatherMinTemp', e.target.value)} className="w-1/2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-2 text-xs" />
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase">Alba / Tramonto</label>
@@ -880,7 +981,10 @@ export const ODGPage: React.FC = () => {
                 <h2>Convocazioni Troupe</h2>
               </div>
               <button 
-                onClick={() => addCallEntry('crew')}
+                onClick={() => {
+                  setSelectedDepartment(null);
+                  setShowCrewModal(true);
+                }}
                 className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1"
               >
                 <Plus size={14} />
@@ -902,13 +1006,16 @@ export const ODGPage: React.FC = () => {
                   {odgData.crewCalls.map(c => (
                     <tr key={c.id}>
                       <td className="px-4 py-2">
-                        <input 
-                          type="text" 
-                          value={c.role}
-                          onChange={(e) => updateCallEntry('crew', c.id, 'role', e.target.value)}
-                          className="w-full bg-transparent border-none p-0 focus:ring-0 text-sm font-medium"
-                          placeholder="es. Regista"
-                        />
+                        <div className="flex flex-col">
+                          {c.department && <span className="text-[9px] text-gray-400 font-bold uppercase">{c.department}</span>}
+                          <input 
+                            type="text" 
+                            value={c.role}
+                            onChange={(e) => updateCallEntry('crew', c.id, 'role', e.target.value)}
+                            className="w-full bg-transparent border-none p-0 focus:ring-0 text-sm font-medium"
+                            placeholder="es. Regista"
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-2">
                         <input 
@@ -1068,9 +1175,112 @@ export const ODGPage: React.FC = () => {
       )}
 
       {/* Hidden Print Template */}
-      <div style={{ display: 'none' }}>
+      <div id="odg-print-container" style={{ position: 'absolute', left: '-9999px', top: 0 }}>
         {odgData && <ODGPrintTemplate data={odgData} projectScenes={projectScenes} elements={elements} />}
       </div>
+
+      {/* Crew Modal */}
+      {showCrewModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            setShowCrewModal(false);
+            setSelectedDepartment(null);
+          }}
+        >
+          <div 
+            className="bg-white dark:bg-gray-900 border-2 border-orange-500/20 dark:border-orange-500/30 rounded-3xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] w-full max-w-[320px] overflow-hidden flex flex-col max-h-[60vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+              <h3 className="text-sm font-black uppercase tracking-widest text-orange-600 dark:text-orange-500">
+                {selectedDepartment ? selectedDepartment : 'Aggiungi Reparto'}
+              </h3>
+              <button 
+                onClick={() => {
+                  if (selectedDepartment) {
+                    setSelectedDepartment(null);
+                  } else {
+                    setShowCrewModal(false);
+                  }
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                {selectedDepartment ? <ChevronLeft size={20} /> : <span className="text-lg">✕</span>}
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
+              {!selectedDepartment ? (
+                <div className="grid grid-cols-1 gap-2">
+                  {Object.keys(CREW_DEPARTMENTS).map(dept => (
+                    <button
+                      key={dept}
+                      onClick={() => setSelectedDepartment(dept)}
+                      className="p-3 text-left bg-gray-50 dark:bg-gray-800/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all border border-transparent hover:border-orange-200 dark:hover:border-orange-800 flex justify-between items-center group"
+                    >
+                      <span className="group-hover:text-orange-600 transition-colors">{dept}</span>
+                      <ChevronDown size={14} className="-rotate-90 text-gray-300 group-hover:text-orange-400" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2">
+                  {CREW_DEPARTMENTS[selectedDepartment].map(role => (
+                    <button
+                      key={role}
+                      onClick={() => {
+                        if (!odgData) return;
+                        const newEntry: ODGCallEntry = {
+                          id: Date.now().toString() + Math.random().toString(36).substring(7),
+                          role: role,
+                          name: '',
+                          department: selectedDepartment,
+                          callTime: odgData.startTime || '08:00',
+                          readyTime: odgData.startTime || '08:00',
+                          notes: ''
+                        };
+                        setOdgData({
+                          ...odgData,
+                          crewCalls: [...odgData.crewCalls, newEntry]
+                        });
+                        setShowCrewModal(false);
+                        setSelectedDepartment(null);
+                      }}
+                      className="p-3 text-left bg-gray-50 dark:bg-gray-800/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl text-xs font-medium transition-all border border-transparent hover:border-orange-200 dark:hover:border-orange-800"
+                    >
+                      {role}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      if (!odgData) return;
+                      const newEntry: ODGCallEntry = {
+                        id: Date.now().toString() + Math.random().toString(36).substring(7),
+                        role: '',
+                        name: '',
+                        department: selectedDepartment,
+                        callTime: odgData.startTime || '08:00',
+                        readyTime: odgData.startTime || '08:00',
+                        notes: ''
+                      };
+                      setOdgData({
+                        ...odgData,
+                        crewCalls: [...odgData.crewCalls, newEntry]
+                      });
+                      setShowCrewModal(false);
+                      setSelectedDepartment(null);
+                    }}
+                    className="p-3 text-left bg-gray-50 dark:bg-gray-800/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl text-xs font-medium transition-all italic text-gray-400 border border-transparent hover:border-orange-200 dark:hover:border-orange-800"
+                  >
+                    + Altro (inserisci manualmente)
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

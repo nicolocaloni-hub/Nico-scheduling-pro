@@ -608,6 +608,8 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
           elements={elements}
           projectName={projectName}
           onClose={() => setShowBreakdownModal(false)}
+          onSceneUpdate={handleSceneSave}
+          onElementDeleted={onElementDeleted}
         />
       )}
     </div>

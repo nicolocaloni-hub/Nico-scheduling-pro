@@ -3,6 +3,7 @@ import { Button } from './Button';
 import { db } from '../services/store';
 import { useTranslation } from '../services/i18n';
 import { Stripboard, Scene, ProductionElement, ElementCategory, IntExt, DayNight } from '../types';
+import { SceneEditorModal } from './SceneEditorModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FileText, Calendar, CheckCircle2, Info } from 'lucide-react';
@@ -13,10 +14,14 @@ interface BreakdownModalProps {
   elements: ProductionElement[];
   projectName?: string;
   onClose: () => void;
+  onSceneUpdate?: (updatedScene: Scene) => void;
+  onElementDeleted?: (elementId: string) => void;
 }
 
-export const BreakdownModal: React.FC<BreakdownModalProps> = ({ board, scenes, elements, projectName, onClose }) => {
+export const BreakdownModal: React.FC<BreakdownModalProps> = ({ board, scenes, elements, projectName, onClose, onSceneUpdate, onElementDeleted }) => {
   const [selectedDay, setSelectedDay] = useState<string>('all');
+  const [view, setView] = useState<'days' | 'scenes'>('days');
+  const [editingScene, setEditingScene] = useState<Scene | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const { t } = useTranslation();
 
@@ -64,7 +69,7 @@ export const BreakdownModal: React.FC<BreakdownModalProps> = ({ board, scenes, e
         const pauseStart = daySetting?.pauseStart || '13:00';
         const pauseEnd = daySetting?.pauseEnd || '14:00';
 
-        const yOffset = showBanner ? 0 : -40;
+        const yOffset = showBanner ? -7 : -40;
 
         if (showBanner) {
           // Header
@@ -77,16 +82,13 @@ export const BreakdownModal: React.FC<BreakdownModalProps> = ({ board, scenes, e
           doc.text(`DAY ${shootDayIndex}`, 105, 17, { align: 'center' });
           doc.line(10, 19, 200, 19);
           
-          doc.text(`${startTime} / ${endTime} - PAUSA ${pauseStart}/${pauseEnd}`, 105, 24, { align: 'center' });
+          // Location info (if available)
+          doc.text(scene.locationName?.toUpperCase() || "LOCATION NON DEFINITA", 105, 24, { align: 'center' });
           doc.line(10, 26, 200, 26);
           
-          // Location info (if available)
-          doc.text(scene.locationName?.toUpperCase() || "LOCATION NON DEFINITA", 105, 31, { align: 'center' });
-          doc.line(10, 33, 200, 33);
-          
           const dateStr = scene.shootDay ? new Date(scene.shootDay).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : "";
-          doc.text(`Shoot Day # ${shootDayIndex} ${dateStr}`, 105, 38, { align: 'center' });
-          doc.line(10, 40, 200, 40);
+          doc.text(`Shoot Day # ${shootDayIndex} ${dateStr}`, 105, 31, { align: 'center' });
+          doc.line(10, 33, 200, 33);
           doc.setFont("helvetica", "normal");
         }
 
@@ -143,7 +145,7 @@ export const BreakdownModal: React.FC<BreakdownModalProps> = ({ board, scenes, e
           // Column 1
           { title: "Cast Members", key: ElementCategory.Cast, col: 0, row: 0, h: 80 },
           { title: "Special Effects", key: ElementCategory.SFX, col: 0, row: 2, h: 35 },
-          { title: "Set Dressing", key: ElementCategory.Props, col: 0, row: 3, h: 35 },
+          { title: "Set Dressing", key: "SetDressing", col: 0, row: 3, h: 35 },
           { title: "Notes", key: "Notes", col: 0, row: 4, h: 35 },
           
           // Column 2
@@ -183,7 +185,18 @@ export const BreakdownModal: React.FC<BreakdownModalProps> = ({ board, scenes, e
           doc.setFontSize(7);
 
           if (cat.key !== "Notes") {
-            const sceneElements = elements.filter(e => scene.elementIds.includes(e.id) && e.category === cat.key);
+            const sceneElements = elements.filter(e => {
+              if (!scene.elementIds?.includes(e.id)) return false;
+              
+              if (cat.key === ElementCategory.Cast) {
+                return e.category === ElementCategory.Cast || (e.category || '').toLowerCase() === 'character';
+              }
+              if (cat.key === ElementCategory.Props) {
+                const c = (e.category || '').toLowerCase();
+                return c === 'props' || c === 'prop' || c.includes('oggetti') || c.includes('attrezzeria') || e.category === ElementCategory.Props;
+              }
+              return e.category === cat.key;
+            });
             sceneElements.forEach((el, j) => {
               if (y + 8 + j * 4 < y + cat.h) {
                 doc.text(`• ${el.name}`, x + 2, y + 8 + j * 4);
@@ -228,68 +241,149 @@ export const BreakdownModal: React.FC<BreakdownModalProps> = ({ board, scenes, e
         </div>
         
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
-          {/* Selection Section */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <Calendar size={14} /> Seleziona Giornata
-            </h4>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                onClick={() => setSelectedDay('all')}
-                className={`p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${
-                  selectedDay === 'all'
-                    ? 'bg-primary-50 border-primary-200 dark:bg-primary-900/20 dark:border-primary-800'
-                    : 'bg-white border-gray-100 hover:border-gray-300 dark:bg-gray-800 dark:border-gray-700'
-                }`}
-              >
-                <div>
-                  <span className={`block font-bold text-sm ${selectedDay === 'all' ? 'text-primary-700 dark:text-primary-300' : 'text-gray-700 dark:text-gray-300'}`}>
-                    Tutti i Giorni
-                  </span>
-                  <span className="text-[10px] text-gray-500 dark:text-gray-400">Genera lo spoglio completo</span>
-                </div>
-                {selectedDay === 'all' && <CheckCircle2 size={18} className="text-primary-600" />}
-              </button>
-
-              {days.map((day, idx) => (
+          {view === 'days' ? (
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Calendar size={14} /> Seleziona Giornata
+              </h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
-                  key={day}
-                  onClick={() => setSelectedDay(day)}
+                  onClick={() => setSelectedDay('all')}
                   className={`p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${
-                    selectedDay === day
+                    selectedDay === 'all'
                       ? 'bg-primary-50 border-primary-200 dark:bg-primary-900/20 dark:border-primary-800'
                       : 'bg-white border-gray-100 hover:border-gray-300 dark:bg-gray-800 dark:border-gray-700'
                   }`}
                 >
                   <div>
-                    <span className={`block font-bold text-sm ${selectedDay === day ? 'text-primary-700 dark:text-primary-300' : 'text-gray-700 dark:text-gray-300'}`}>
-                      Giorno {idx + 1}
+                    <span className={`block font-bold text-sm ${selectedDay === 'all' ? 'text-primary-700 dark:text-primary-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                      Tutti i Giorni
                     </span>
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                      {day ? new Date(day).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : 'Data non definita'}
-                    </span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400">Genera lo spoglio completo</span>
                   </div>
-                  {selectedDay === day && <CheckCircle2 size={18} className="text-primary-600" />}
+                  {selectedDay === 'all' && <CheckCircle2 size={18} className="text-primary-600" />}
                 </button>
-              ))}
+
+                {days.map((day, idx) => (
+                  <button
+                    key={day}
+                    onClick={() => {
+                      setSelectedDay(day);
+                      setView('scenes');
+                    }}
+                    className={`p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                      selectedDay === day
+                        ? 'bg-primary-50 border-primary-200 dark:bg-primary-900/20 dark:border-primary-800'
+                        : 'bg-white border-gray-100 hover:border-gray-300 dark:bg-gray-800 dark:border-gray-700'
+                    }`}
+                  >
+                    <div>
+                      <span className={`block font-bold text-sm ${selectedDay === day ? 'text-primary-700 dark:text-primary-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                        Giorno {idx + 1}
+                      </span>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                        {day ? new Date(day).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : 'Data non definita'}
+                      </span>
+                    </div>
+                    {selectedDay === day && <CheckCircle2 size={18} className="text-primary-600" />}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <FileText size={14} /> Scene del Giorno {days.indexOf(selectedDay) + 1}
+                </h4>
+                <button 
+                  onClick={() => setView('days')}
+                  className="text-xs font-bold text-primary-600 hover:text-primary-700 uppercase tracking-wider"
+                >
+                  Torna ai Giorni
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                {(Object.values(scenes) as Scene[])
+                  .filter(s => s.shootDay === selectedDay)
+                  .sort((a, b) => {
+                    const stripA = board.strips.find(st => st.sceneId === a.id);
+                    const stripB = board.strips.find(st => st.sceneId === b.id);
+                    return (stripA?.order || 0) - (stripB?.order || 0);
+                  })
+                  .map(scene => (
+                    <div 
+                      key={scene.id}
+                      className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900 dark:text-white w-6">{scene.sceneNumber}</span>
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                            {scene.intExt} {scene.setName} - {scene.dayNight}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 ml-8">
+                          {scene.synopsis}
+                        </p>
+                      </div>
+                      <Button 
+                        variant="secondary" 
+                        onClick={() => setEditingScene(scene)}
+                        className="text-xs px-3 py-1.5 h-auto"
+                      >
+                        Modifica Elementi
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex gap-3 bg-gray-50/50 dark:bg-gray-900/50">
-          <Button variant="secondary" onClick={onClose} className="flex-1 rounded-xl h-12 font-bold uppercase tracking-wider text-xs">
-            Annulla
-          </Button>
-          <Button 
-            onClick={generateBreakdown} 
-            disabled={isGenerating}
-            className="flex-1 rounded-xl h-12 font-bold uppercase tracking-wider text-xs shadow-lg shadow-green-500/20 bg-green-600 hover:bg-green-700"
-          >
-            {isGenerating ? 'Generazione...' : 'Genera PDF'}
-          </Button>
-        </div>
+        {view === 'days' && (
+          <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex gap-3 bg-gray-50/50 dark:bg-gray-900/50">
+            <Button variant="secondary" onClick={onClose} className="flex-1 rounded-xl h-12 font-bold uppercase tracking-wider text-xs">
+              Annulla
+            </Button>
+            <Button 
+              onClick={generateBreakdown} 
+              disabled={isGenerating}
+              className="flex-1 rounded-xl h-12 font-bold uppercase tracking-wider text-xs shadow-lg shadow-green-500/20 bg-green-600 hover:bg-green-700"
+            >
+              {isGenerating ? 'Generazione...' : 'Genera PDF'}
+            </Button>
+          </div>
+        )}
+        
+        {view === 'scenes' && (
+          <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex gap-3 bg-gray-50/50 dark:bg-gray-900/50">
+            <Button 
+              onClick={() => setView('days')} 
+              className="w-full rounded-xl h-12 font-bold uppercase tracking-wider text-xs shadow-lg shadow-primary-500/20"
+            >
+              Conferma e Torna ai Giorni
+            </Button>
+          </div>
+        )}
       </div>
+
+      {editingScene && (
+        <SceneEditorModal 
+          scene={editingScene} 
+          elements={elements}
+          onClose={() => setEditingScene(null)} 
+          onSave={async (updatedScene) => {
+            if (onSceneUpdate) {
+              onSceneUpdate(updatedScene);
+            }
+            setEditingScene(null);
+          }} 
+          onDeleteElement={onElementDeleted}
+        />
+      )}
     </div>
   );
 };

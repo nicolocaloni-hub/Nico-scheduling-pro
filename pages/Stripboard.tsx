@@ -52,11 +52,16 @@ export const StripboardView: React.FC = () => {
         setBoards(prev => prev.map(b => b.id === updatedBoard.id ? updatedBoard : b));
     };
 
-    const handleSceneUpdate = (updatedScene: Scene) => {
+    const handleSceneUpdate = async (updatedScene: Scene) => {
         setScenes(prev => ({
             ...prev,
             [updatedScene.id]: updatedScene
         }));
+        const pid = localStorage.getItem('currentProjectId');
+        if (pid) {
+            const projectElements = await db.getElements(pid);
+            setElements(projectElements);
+        }
     };
 
     const handleDeleteRequest = (boardId: string) => {
