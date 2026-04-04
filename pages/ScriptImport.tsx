@@ -26,6 +26,8 @@ export const ScriptImport: React.FC = () => {
   const [previewData, setPreviewData] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [isWaitingForAd, setIsWaitingForAd] = useState(false);
   const { t } = useTranslation();
 
   const addLog = (msg: string) => {
@@ -185,10 +187,10 @@ export const ScriptImport: React.FC = () => {
     addLog(`[CLIENT] API Key di sistema presente: ${key ? 'Sì' : 'No'}`);
   };
 
-  const startAnalysis = async () => {
+  const executeAnalysis = async () => {
     if (!selectedFile) return;
     
-    addLog("[UI] startAnalysis triggered");
+    addLog("[UI] executeAnalysis triggered");
     setImportState('uploading');
     setError(null);
 
@@ -242,6 +244,30 @@ export const ScriptImport: React.FC = () => {
       setImportState('error');
       addLog(`[CRITICAL] ${err.message}`);
     }
+  };
+
+  const startAnalysis = async () => {
+    const countStr = localStorage.getItem('scriptAnalysisCount') || '0';
+    const count = parseInt(countStr, 10);
+
+    if (count < 2) {
+      localStorage.setItem('scriptAnalysisCount', (count + 1).toString());
+      executeAnalysis();
+    } else {
+      setShowAdModal(true);
+    }
+  };
+
+  const handleAdClick = () => {
+    window.open('https://www.profitablecpmratenetwork.com/b7vfa6h48?key=6904e6cfd648e3b845ffcd4956bd68a9', '_blank');
+    setIsWaitingForAd(true);
+    
+    setTimeout(() => {
+      localStorage.setItem('scriptAnalysisCount', '0');
+      setShowAdModal(false);
+      setIsWaitingForAd(false);
+      executeAnalysis();
+    }, 3000);
   };
 
   const saveResultsToDb = async (data: any, targetProjectId: string) => {
@@ -332,26 +358,27 @@ export const ScriptImport: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-8 px-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white leading-tight">{t('import_title')}</h1>
+            <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white leading-tight">{t('import_title')}</h1>
             <p className="text-gray-500 dark:text-gray-400 font-medium">{t('import_subtitle')}</p>
           </div>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full md:w-auto justify-end">
           {(importState === 'selected' || importState === 'uploading' || importState === 'analyzing') && (
             <Button 
               onClick={startAnalysis} 
               type="button"
               disabled={importState === 'uploading' || importState === 'analyzing'}
+              className="w-full md:w-auto"
             >
               {importState === 'selected' ? t('start_analysis') : 'Attendere...'}
             </Button>
           )}
           {importState === 'done' && (
-            <div className="flex flex-col items-end gap-1">
+            <div className="flex flex-col items-end gap-1 w-full md:w-auto">
               <button 
                 onClick={handleReset}
                 className="text-[10px] text-gray-500 hover:text-red-500 uppercase font-bold tracking-wider"
@@ -359,7 +386,7 @@ export const ScriptImport: React.FC = () => {
                 {t('reset')}
               </button>
               {projectId && (
-                <Button onClick={() => navigate('/stripboard')}>
+                <Button onClick={() => navigate('/stripboard')} className="w-full md:w-auto">
                   <span className="text-xs">{t('go_to_pdl')}</span>
                 </Button>
               )}
@@ -457,6 +484,40 @@ export const ScriptImport: React.FC = () => {
         confirmText="Reset"
         cancelText="Annulla"
       />
+
+      {/* Ad Modal */}
+      {showAdModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col border border-gray-100 dark:border-gray-800">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">🎁</span>
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 dark:text-white">Analisi gratuite esaurite</h3>
+              <p className="text-gray-500 dark:text-gray-400">
+                Hai utilizzato le tue 2 analisi gratuite. Supporta l'app visitando il link del nostro sponsor per sbloccare altre analisi.
+              </p>
+            </div>
+            <div className="p-6 bg-gray-50 dark:bg-gray-800/50 flex flex-col gap-3">
+              <Button 
+                onClick={handleAdClick} 
+                disabled={isWaitingForAd}
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {isWaitingForAd ? 'Sblocco in corso...' : 'Guarda Pubblicità'}
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowAdModal(false)}
+                disabled={isWaitingForAd}
+                className="w-full"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
