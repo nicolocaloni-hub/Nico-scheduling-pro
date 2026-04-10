@@ -40,6 +40,7 @@ export const ODGPage: React.FC = () => {
   const [odgData, setOdgData] = useState<ODGData | null>(null);
   const [projectScenes, setProjectScenes] = useState<Scene[]>([]);
   const [elements, setElements] = useState<ProductionElement[]>([]);
+  const [touchedTimeFields, setTouchedTimeFields] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadProjects();
@@ -47,9 +48,16 @@ export const ODGPage: React.FC = () => {
 
   useEffect(() => {
     if (selectedProjectId && selectedDate) {
+      setTouchedTimeFields({});
       loadODGData();
     }
   }, [selectedProjectId, selectedDate]);
+
+  const handleTimeFieldTouch = (fieldName: string) => {
+    if (!touchedTimeFields[fieldName]) {
+      setTouchedTimeFields(prev => ({ ...prev, [fieldName]: true }));
+    }
+  };
 
   const loadProjects = async () => {
     const data = await db.getProjects();
@@ -640,6 +648,16 @@ export const ODGPage: React.FC = () => {
                   className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Pasti Troupe</label>
+                <input 
+                  type="number" 
+                  value={odgData.crewMeals || ''}
+                  onChange={(e) => updateField('crewMeals', e.target.value)}
+                  placeholder="Es. 36"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
               <div className="grid grid-cols-5 gap-x-2 gap-y-1 md:col-span-2">
                 <label className="text-[10px] font-bold text-gray-400 uppercase leading-tight">Inizio Lav.</label>
                 <label className="text-[10px] font-bold text-gray-400 uppercase leading-tight">Pronti Girare</label>
@@ -650,32 +668,37 @@ export const ODGPage: React.FC = () => {
                 <input 
                   type="time" 
                   value={odgData.startTime}
-                  onChange={(e) => updateField('startTime', e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => { updateField('startTime', e.target.value); handleTimeFieldTouch('startTime'); }}
+                  onClick={() => handleTimeFieldTouch('startTime')}
+                  className={`w-full bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 transition-all ${touchedTimeFields['startTime'] ? 'ring-2 ring-blue-500 border-none' : 'border-none'}`}
                 />
                 <input 
                   type="time" 
                   value={odgData.readyToShootTime || ''}
-                  onChange={(e) => updateField('readyToShootTime', e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => { updateField('readyToShootTime', e.target.value); handleTimeFieldTouch('readyToShootTime'); }}
+                  onClick={() => handleTimeFieldTouch('readyToShootTime')}
+                  className={`w-full bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 transition-all ${touchedTimeFields['readyToShootTime'] ? 'ring-2 ring-blue-500 border-none' : 'border-none'}`}
                 />
                 <input 
                   type="time" 
                   value={odgData.lunchTime}
-                  onChange={(e) => updateField('lunchTime', e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => { updateField('lunchTime', e.target.value); handleTimeFieldTouch('lunchTime'); }}
+                  onClick={() => handleTimeFieldTouch('lunchTime')}
+                  className={`w-full bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 transition-all ${touchedTimeFields['lunchTime'] ? 'ring-2 ring-blue-500 border-none' : 'border-none'}`}
                 />
                 <input 
                   type="time" 
                   value={odgData.wrapTime || ''}
-                  onChange={(e) => updateField('wrapTime', e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => { updateField('wrapTime', e.target.value); handleTimeFieldTouch('wrapTime'); }}
+                  onClick={() => handleTimeFieldTouch('wrapTime')}
+                  className={`w-full bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 transition-all ${touchedTimeFields['wrapTime'] ? 'ring-2 ring-blue-500 border-none' : 'border-none'}`}
                 />
                 <input 
                   type="time" 
                   value={odgData.endTime}
-                  onChange={(e) => updateField('endTime', e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => { updateField('endTime', e.target.value); handleTimeFieldTouch('endTime'); }}
+                  onClick={() => handleTimeFieldTouch('endTime')}
+                  className={`w-full bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 transition-all ${touchedTimeFields['endTime'] ? 'ring-2 ring-blue-500 border-none' : 'border-none'}`}
                 />
               </div>
             </div>

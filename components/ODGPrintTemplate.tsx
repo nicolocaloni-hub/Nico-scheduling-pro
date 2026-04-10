@@ -121,7 +121,7 @@ export const ODGPrintTemplate: React.FC<ODGPrintTemplateProps> = ({ data, projec
         <div className="flex-1 text-center">
           <h1 className="text-2xl font-black uppercase tracking-widest">{data.projectName || 'IMPRESSIONI'}</h1>
           <p className="text-[10px] italic">Regia</p>
-          <p className="text-sm font-bold uppercase">{data.director || 'ELISA PURITA'}</p>
+          <p className="text-sm font-bold uppercase">{data.director || 'Nome Regista'}</p>
           <div className="mt-2">
             <p className="text-sm font-black uppercase">ODG #{data.odgNumber || data.shootDayNumber}</p>
             <p className="text-sm font-bold capitalize">{formatDate(data.date)}</p>
@@ -182,7 +182,7 @@ export const ODGPrintTemplate: React.FC<ODGPrintTemplateProps> = ({ data, projec
         <div className="flex divide-x divide-black">
           <div className="w-1/4 p-1 font-bold uppercase">Produttore esecutivo</div>
           <div className="w-1/4 p-1">{data.executiveProducer}</div>
-          <div className="w-1/4 p-1 font-bold uppercase">PASTI TROUPE: 24</div>
+          <div className="w-1/4 p-1 font-bold uppercase">PASTI TROUPE: {data.crewMeals || 0}</div>
           <div className="w-[12.5%] p-1 font-bold uppercase">PRONTI A GIRARE</div>
           <div className="w-[12.5%] p-1 font-bold">{data.readyToShootTime}</div>
         </div>

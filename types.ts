@@ -227,6 +227,7 @@ export interface ODGData {
   sunriseTime?: string;
   sunsetTime?: string;
   mottoOfTheDay?: string;
+  crewMeals?: string | number;
   
   // Scene
   scenes: ODGSceneEntry[];
