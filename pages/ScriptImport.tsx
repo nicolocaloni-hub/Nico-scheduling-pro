@@ -4,46 +4,41 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../services/store';
 import { Scene, ProductionElement, ElementCategory, IntExt, DayNight, ProductionType } from '../types';
 import { Button } from '../components/Button';
-import { parseEighthsToFloat, analyzeScriptPdf } from '../services/geminiService';
 import { AiStatusBar, ImportState } from '../components/AiStatusBar';
 import { ResultsPreview } from '../components/ResultsPreview';
 import { CreateProjectModal } from '../components/CreateProjectModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { useTranslation } from '../services/i18n';
+import { useAnalysis } from '../contexts/AnalysisContext';
 
 export const ScriptImport: React.FC = () => {
   const navigate = useNavigate();
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [importState, setImportState] = useState<ImportState>('idle');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [summary, setSummary] = useState<any>(null);
+  
+  const {
+    importState, setImportState,
+    selectedFile, setSelectedFile,
+    pdfPreviewUrl, setPdfPreviewUrl,
+    error, setError,
+    logs, setLogs,
+    summary, setSummary,
+    modelUsed, setModelUsed,
+    previewData, setPreviewData,
+    projectId, setProjectId,
+    analysisStartTime,
+    addLog, startAnalysis, resetAnalysisState, saveResultsToDb
+  } = useAnalysis();
   
   // New state for UI components
-  const [modelUsed, setModelUsed] = useState<string | undefined>(undefined);
-  const [previewData, setPreviewData] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const { t } = useTranslation();
-
-  const addLog = (msg: string) => {
-    console.log(msg);
-    setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 50));
-  };
 
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
     if (!pid) {
       // Clean state if no project selected
       setProjectId(null);
-      setSummary(null);
-      setPreviewData(null);
-      setModelUsed(undefined);
-      setImportState('idle');
-      setSelectedFile(null);
-      setPdfPreviewUrl(null);
+      resetAnalysisState();
       return;
     } 
     
@@ -51,13 +46,7 @@ export const ScriptImport: React.FC = () => {
     if (pid !== projectId) {
       setProjectId(pid);
       // Reset state first
-      setSummary(null);
-      setPreviewData(null);
-      setModelUsed(undefined);
-      setImportState('idle');
-      setSelectedFile(null);
-      // Removed URL.revokeObjectURL to prevent potential issues with React rendering cycles
-      setPdfPreviewUrl(null);
+      resetAnalysisState();
 
       // Check for saved analysis
       db.getAnalysisResult(pid).then(saved => {
@@ -91,13 +80,7 @@ export const ScriptImport: React.FC = () => {
     }
     
     // Clear local state
-    setSummary(null);
-    setPreviewData(null);
-    setModelUsed(undefined);
-    setImportState('idle');
-    setSelectedFile(null);
-    // Removed URL.revokeObjectURL to prevent potential issues with React rendering cycles
-    setPdfPreviewUrl(null);
+    resetAnalysisState();
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -119,7 +102,7 @@ export const ScriptImport: React.FC = () => {
 
     // 3. Save the analysis results to this new project if available
     if (previewData) {
-        await saveResultsToDb(previewData, newProject.id);
+        await saveResultsToDb(previewData, newProject.id, selectedFile?.name || 'Sceneggiatura Salvata');
         await db.saveAnalysisResult(newProject.id, {
             summary,
             data: previewData,
@@ -185,151 +168,6 @@ export const ScriptImport: React.FC = () => {
     addLog(`[CLIENT] API Key di sistema presente: ${key ? 'Sì' : 'No'}`);
   };
 
-  const startAnalysis = async () => {
-    if (!selectedFile) return;
-    
-    addLog("[UI] startAnalysis triggered");
-    setImportState('uploading');
-    setError(null);
-
-    try {
-      // Clear previous results now that we are starting a new analysis
-      if (projectId) {
-         await db.clearAnalysisResult(projectId);
-      }
-
-      addLog("Conversione file in corso...");
-      
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(selectedFile);
-      });
-      
-      addLog("Invio a Gemini in corso...");
-      setImportState('analyzing');
-      
-      const result = await analyzeScriptPdf(base64, (info) => {
-        if (info.error) {
-            addLog(`[ERROR] ${info.error}`);
-        } else {
-            addLog(`[INFO] Status: ${info.status}, Model: ${info.modelUsed}`);
-        }
-      });
-
-      addLog(`Analisi completata! Modello: ${result.modelUsed}`);
-      setModelUsed(result.modelUsed);
-      setSummary(result.summary);
-      setPreviewData(result.data);
-      
-      if (projectId) {
-        await saveResultsToDb(result.data, projectId);
-        await db.saveAnalysisResult(projectId, {
-          summary: result.summary,
-          data: result.data,
-          modelUsed: result.modelUsed,
-          fileName: selectedFile?.name
-        });
-      }
-      
-      setImportState('done');
-      addLog("Analisi completata.");
-
-    } catch (err: any) {
-      console.error("Analysis failed:", err);
-      setError(err.message || "Errore sconosciuto durante l'analisi.");
-      setImportState('error');
-      addLog(`[CRITICAL] ${err.message}`);
-    }
-  };
-
-  const saveResultsToDb = async (data: any, targetProjectId: string) => {
-    if (!targetProjectId) return;
-    
-    addLog("Sincronizzazione database locale...");
-    
-    const elementsMap: Record<string, ProductionElement> = {};
-    const elements: ProductionElement[] = (data.elements || []).map((el: any) => {
-      const newEl: ProductionElement = {
-        id: crypto.randomUUID(),
-        projectId: targetProjectId,
-        name: el.name,
-        category: el.category as ElementCategory
-      };
-      elementsMap[el.name.toLowerCase()] = newEl;
-      return newEl;
-    });
-
-    // Check for elements in sceneElements that are not in elementsMap
-    const additionalElements: ProductionElement[] = [];
-    (data.scenes || []).forEach((s: any) => {
-      const elementNames = data.sceneElements?.[s.sceneNumber] || [];
-      elementNames.forEach((name: string) => {
-        if (name && !elementsMap[name.toLowerCase()]) {
-          const newEl: ProductionElement = {
-            id: crypto.randomUUID(),
-            projectId: targetProjectId,
-            name: name,
-            category: ElementCategory.Cast // Default to Cast if unknown
-          };
-          elementsMap[name.toLowerCase()] = newEl;
-          additionalElements.push(newEl);
-        }
-      });
-    });
-
-    const allElementsToSave = [...elements, ...additionalElements];
-    await db.saveElements(targetProjectId, allElementsToSave);
-
-    // Get project to check for shootDays
-    const projects = await db.getProjects();
-    const project = projects.find(p => p.id === targetProjectId);
-    const shootDays = project?.shootDays || [];
-    const scenesPerDay = shootDays.length > 0 ? Math.ceil((data.scenes || []).length / shootDays.length) : 0;
-
-    const scenes: Scene[] = (data.scenes || []).map((s: any, index: number) => {
-      const elementNames = data.sceneElements?.[s.sceneNumber] || [];
-      const elementIds = elementNames.map((name: string) => elementsMap[name.toLowerCase()]?.id).filter((id: any) => !!id) as string[];
-
-      // Distribute scenes to days if shootDays exist
-      let assignedDay = undefined;
-      if (shootDays.length > 0) {
-          const dayIndex = Math.floor(index / scenesPerDay);
-          if (dayIndex < shootDays.length) {
-              assignedDay = shootDays[dayIndex];
-          }
-      }
-
-      return {
-        id: crypto.randomUUID(),
-        projectId: targetProjectId,
-        sceneNumber: s.sceneNumber,
-        slugline: s.slugline,
-        intExt: s.intExt as IntExt,
-        dayNight: s.dayNight as DayNight,
-        setName: s.setName || 'SET',
-        locationName: s.locationName || 'LOCATION',
-        pageCountInEighths: s.pageCountInEighths || '0 1/8',
-        pages: parseEighthsToFloat(s.pageCountInEighths || '0 1/8'),
-        synopsis: s.synopsis || '',
-        elementIds,
-        shootDay: assignedDay
-      };
-    });
-
-    await db.saveScenes(targetProjectId, scenes);
-    await db.createDefaultStripboard(targetProjectId, scenes);
-    await db.saveScriptVersion({
-      id: crypto.randomUUID(),
-      projectId: targetProjectId,
-      fileName: selectedFile!.name,
-      fileUrl: '#local',
-      version: 1,
-      createdAt: new Date().toISOString()
-    });
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-8 px-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -343,7 +181,7 @@ export const ScriptImport: React.FC = () => {
         <div className="flex gap-3 w-full md:w-auto justify-end">
           {(importState === 'selected' || importState === 'uploading' || importState === 'analyzing') && (
             <Button 
-              onClick={startAnalysis} 
+              onClick={() => startAnalysis(projectId || '')} 
               type="button"
               disabled={importState === 'uploading' || importState === 'analyzing'}
               className="w-full md:w-auto"
@@ -397,6 +235,7 @@ export const ScriptImport: React.FC = () => {
             status={importState} 
             fileName={selectedFile?.name || null} 
             model={modelUsed} 
+            startTime={analysisStartTime}
           />
 
           {/* Results Preview */}

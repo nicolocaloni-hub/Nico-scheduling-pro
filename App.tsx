@@ -14,6 +14,7 @@ import { PropsPage } from './pages/PropsPage';
 import { ManualStripboardCreate } from './pages/ManualStripboardCreate';
 import { LandingPage } from './pages/LandingPage';
 import { ODGPage } from './pages/ODGPage';
+import { AnalysisProvider } from './contexts/AnalysisContext';
 
 class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: {children: ReactNode}) {
@@ -53,23 +54,25 @@ class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean,
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <HashRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/projects" element={<Layout><Dashboard /></Layout>} />
-          <Route path="/odg" element={<Layout><ODGPage /></Layout>} />
-          
-          <Route path="/script" element={<Layout><ScriptImport /></Layout>} />
-          <Route path="/stripboard" element={<Layout><StripboardView /></Layout>} />
-          <Route path="/stripboard/manual/create" element={<Layout><ManualStripboardCreate /></Layout>} />
-          <Route path="/calendar" element={<Layout><CalendarPage /></Layout>} />
-          <Route path="/scenes" element={<Layout><ScenesPage /></Layout>} />
-          <Route path="/characters" element={<Layout><CharactersPage /></Layout>} />
-          <Route path="/locations" element={<Layout><LocationsPage /></Layout>} />
-          <Route path="/props" element={<Layout><PropsPage /></Layout>} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </HashRouter>
+      <AnalysisProvider>
+        <HashRouter>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/projects" element={<Layout><Dashboard /></Layout>} />
+            <Route path="/odg" element={<Layout><ODGPage /></Layout>} />
+            
+            <Route path="/script" element={<Layout><ScriptImport /></Layout>} />
+            <Route path="/stripboard" element={<Layout><StripboardView /></Layout>} />
+            <Route path="/stripboard/manual/create" element={<Layout><ManualStripboardCreate /></Layout>} />
+            <Route path="/calendar" element={<Layout><CalendarPage /></Layout>} />
+            <Route path="/scenes" element={<Layout><ScenesPage /></Layout>} />
+            <Route path="/characters" element={<Layout><CharactersPage /></Layout>} />
+            <Route path="/locations" element={<Layout><LocationsPage /></Layout>} />
+            <Route path="/props" element={<Layout><PropsPage /></Layout>} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </HashRouter>
+      </AnalysisProvider>
     </ErrorBoundary>
   );
 };

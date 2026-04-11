@@ -6,22 +6,24 @@ interface AiStatusBarProps {
   status: ImportState;
   fileName: string | null;
   model?: string;
+  startTime?: number | null;
 }
 
-export const AiStatusBar: React.FC<AiStatusBarProps> = ({ status, fileName, model }) => {
+export const AiStatusBar: React.FC<AiStatusBarProps> = ({ status, fileName, model, startTime }) => {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (status === 'uploading' || status === 'analyzing') {
-      const start = Date.now();
-      setElapsed(0);
+    if ((status === 'uploading' || status === 'analyzing') && startTime) {
+      setElapsed(Math.floor((Date.now() - startTime) / 1000));
       interval = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - start) / 1000));
+        setElapsed(Math.floor((Date.now() - startTime) / 1000));
       }, 1000);
+    } else if (status === 'idle' || status === 'selected') {
+      setElapsed(0);
     }
     return () => clearInterval(interval);
-  }, [status]);
+  }, [status, startTime]);
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60);
