@@ -107,9 +107,6 @@ export const LandingPage: React.FC = () => {
           <p className="text-[10px] font-bold text-gray-300 dark:text-gray-700 tracking-[0.1em] uppercase">
             <a href="https://www.instagram.com/nicolo.cc?igsh=MXJ1bXRoejJ5bTJzcw==" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">@NICOLO.CC</a>
           </p>
-          <p className="text-[10px] font-bold text-gray-300 dark:text-gray-700 tracking-[0.1em] uppercase">
-            per info: <a href="tel:+393494561834" className="hover:opacity-70 transition-opacity">+39 3494561834</a>
-          </p>
         </div>
 
       </div>
