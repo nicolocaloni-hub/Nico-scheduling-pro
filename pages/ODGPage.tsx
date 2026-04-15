@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ODGPrintTemplate } from '../components/ODGPrintTemplate';
+import { extractCrewFromDocument } from '../services/geminiService';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -34,7 +35,9 @@ export const ODGPage: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCrewModal, setShowCrewModal] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [isImportingCrew, setIsImportingCrew] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const crewFileInputRef = useRef<HTMLInputElement>(null);
 
   // ODG State
   const [odgData, setOdgData] = useState<ODGData | null>(null);
@@ -277,6 +280,48 @@ export const ODGPage: React.FC = () => {
         setOdgData({ ...odgData, castCalls: list });
       } else {
         setOdgData({ ...odgData, crewCalls: list });
+      }
+    }
+  };
+
+  const handleCrewImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !odgData) return;
+
+    setIsImportingCrew(true);
+    try {
+      const extractedCrew = await extractCrewFromDocument(file);
+      
+      if (extractedCrew.length === 0) {
+        alert("Non è stato possibile trovare membri della troupe nel documento. Assicurati che il formato sia corretto.");
+        return;
+      }
+
+      const newEntries: ODGCallEntry[] = extractedCrew.map(crew => ({
+        id: crypto.randomUUID(),
+        role: crew.role || '',
+        name: crew.name || '',
+        department: crew.department || '',
+        callTime: odgData.startTime || '08:00',
+        readyTime: odgData.startTime || '08:00',
+        notes: ''
+      }));
+
+      setOdgData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          crewCalls: [...prev.crewCalls, ...newEntries]
+        };
+      });
+
+    } catch (error) {
+      console.error("Error importing crew:", error);
+      alert("Errore durante l'importazione della troupe. Assicurati che il file sia valido e riprova.");
+    } finally {
+      setIsImportingCrew(false);
+      if (crewFileInputRef.current) {
+        crewFileInputRef.current.value = '';
       }
     }
   };
@@ -1003,16 +1048,34 @@ export const ODGPage: React.FC = () => {
                 </div>
                 <h2>Convocazioni Troupe</h2>
               </div>
-              <button 
-                onClick={() => {
-                  setSelectedDepartment(null);
-                  setShowCrewModal(true);
-                }}
-                className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1"
-              >
-                <Plus size={14} />
-                <span>Aggiungi Reparto</span>
-              </button>
+              <div className="flex items-center gap-4">
+                <label className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1 cursor-pointer">
+                  {isImportingCrew ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <Download size={14} />
+                  )}
+                  <span>{isImportingCrew ? 'Importazione...' : 'Importa'}</span>
+                  <input
+                    type="file"
+                    ref={crewFileInputRef}
+                    onChange={handleCrewImport}
+                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    className="hidden"
+                    disabled={isImportingCrew}
+                  />
+                </label>
+                <button 
+                  onClick={() => {
+                    setSelectedDepartment(null);
+                    setShowCrewModal(true);
+                  }}
+                  className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  <span>Aggiungi Reparto</span>
+                </button>
+              </div>
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-x-auto">
               <table className="w-full text-left text-sm min-w-[600px]">
