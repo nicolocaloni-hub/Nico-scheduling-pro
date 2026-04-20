@@ -173,6 +173,17 @@ export interface ODGSceneEntry {
   selected: boolean;
   order: number;
   notes?: string;
+  isManual?: boolean;
+  manualData?: {
+    sceneNumber?: string;
+    intExt?: string;
+    dayNight?: string;
+    slugline?: string;
+    locationName?: string;
+    castIds?: string;
+    scriptDay?: string;
+    pages?: string;
+  };
 }
 
 export interface ODGCallEntry {

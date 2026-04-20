@@ -233,6 +233,57 @@ export const ODGPage: React.FC = () => {
     setOdgData({ ...odgData, [field]: value });
   };
 
+  const addManualScene = () => {
+    if (!odgData) return;
+    const newSceneId = 'manual-' + crypto.randomUUID();
+    const newManualScene: ODGSceneEntry = {
+      sceneId: newSceneId,
+      selected: true,
+      order: odgData.scenes.length,
+      isManual: true,
+      manualData: {
+        sceneNumber: '1',
+        slugline: 'NUOVA SCENA',
+        intExt: 'INT',
+        dayNight: 'GIORNO',
+        locationName: '',
+        castIds: '',
+        pages: '1',
+      }
+    };
+    setOdgData({
+      ...odgData,
+      scenes: [...odgData.scenes, newManualScene]
+    });
+  };
+
+  const updateManualSceneData = (sceneId: string, field: string, value: string) => {
+    if (!odgData) return;
+    setOdgData({
+      ...odgData,
+      scenes: odgData.scenes.map(s => {
+        if (s.sceneId === sceneId && s.isManual && s.manualData) {
+          return {
+            ...s,
+            manualData: {
+              ...s.manualData,
+              [field]: value
+            }
+          };
+        }
+        return s;
+      })
+    });
+  };
+
+  const removeManualScene = (sceneId: string) => {
+    if (!odgData) return;
+    setOdgData({
+      ...odgData,
+      scenes: odgData.scenes.filter(s => s.sceneId !== sceneId)
+    });
+  };
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && odgData) {
@@ -869,11 +920,20 @@ export const ODGPage: React.FC = () => {
             </div>
           </section>
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-gray-900 dark:text-white font-black uppercase tracking-tight">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
-                <Clapperboard size={18} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-gray-900 dark:text-white font-black uppercase tracking-tight">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
+                  <Clapperboard size={18} />
+                </div>
+                <h2>Scene da Girare</h2>
               </div>
-              <h2>Scene da Girare</h2>
+              <button 
+                onClick={addManualScene}
+                className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
+              >
+                <Plus size={14} />
+                <span>Aggiungi Scena</span>
+              </button>
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
               {odgData.scenes.length === 0 ? (
@@ -884,6 +944,132 @@ export const ODGPage: React.FC = () => {
                 <div className="divide-y divide-gray-50 dark:divide-gray-800">
                   {odgData.scenes.map((s, idx) => {
                     const original = projectScenes.find(ps => ps.id === s.sceneId);
+                    
+                    if (s.isManual) {
+                      return (
+                        <div key={s.sceneId} className={`p-4 flex items-start gap-4 transition-colors ${s.selected ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : 'bg-gray-50/50 dark:bg-gray-800/20 opacity-60'}`}>
+                          <button 
+                            onClick={() => toggleSceneSelection(s.sceneId)}
+                            className={`mt-1 flex-shrink-0 ${s.selected ? 'text-emerald-500' : 'text-gray-300 dark:text-gray-600'}`}
+                          >
+                            {s.selected ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                          </button>
+                          
+                          <div className="flex-1 min-w-0 space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Scena Manuale</span>
+                              <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={() => moveScene(idx, 'up')}
+                                  disabled={idx === 0}
+                                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30"
+                                >
+                                  <ChevronUp size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => moveScene(idx, 'down')}
+                                  disabled={idx === odgData.scenes.length - 1}
+                                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30"
+                                >
+                                  <ChevronDown size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => removeManualScene(s.sceneId)}
+                                  className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Sc.</label>
+                                <input 
+                                  type="text" 
+                                  value={s.manualData?.sceneNumber || ''} 
+                                  onChange={(e) => updateManualSceneData(s.sceneId, 'sceneNumber', e.target.value)}
+                                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500" 
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Int/Est</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="INT o EST"
+                                  value={s.manualData?.intExt || ''} 
+                                  onChange={(e) => updateManualSceneData(s.sceneId, 'intExt', e.target.value)}
+                                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500 uppercase" 
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Giorno/Notte</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="GIORNO o NOTTE"
+                                  value={s.manualData?.dayNight || ''} 
+                                  onChange={(e) => updateManualSceneData(s.sceneId, 'dayNight', e.target.value)}
+                                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500 uppercase" 
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Pagine (es. 1 1/8)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="es. 1 1/8"
+                                  value={s.manualData?.pages || ''} 
+                                  onChange={(e) => updateManualSceneData(s.sceneId, 'pages', e.target.value)}
+                                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500" 
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              <div className="md:col-span-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Ambiente / Descrizione</label>
+                                <input 
+                                  type="text" 
+                                  value={s.manualData?.slugline || ''} 
+                                  onChange={(e) => updateManualSceneData(s.sceneId, 'slugline', e.target.value)}
+                                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500" 
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Location Reale</label>
+                                <input 
+                                  type="text" 
+                                  value={s.manualData?.locationName || ''} 
+                                  onChange={(e) => updateManualSceneData(s.sceneId, 'locationName', e.target.value)}
+                                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500" 
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase">Cast (ID Separati da virgola)</label>
+                              <input 
+                                type="text" 
+                                placeholder="es. 1, 2, 4"
+                                value={s.manualData?.castIds || ''} 
+                                onChange={(e) => updateManualSceneData(s.sceneId, 'castIds', e.target.value)}
+                                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500" 
+                              />
+                            </div>
+
+                            {s.selected && (
+                              <input 
+                                type="text"
+                                placeholder="Aggiungi note per questa scena nell'OdG..."
+                                value={s.notes}
+                                onChange={(e) => updateSceneNote(s.sceneId, e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-gray-800 border-[0.5px] border-emerald-500/30 rounded-lg p-2 text-xs focus:ring-1 focus:ring-emerald-500 mt-2"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={s.sceneId} className={`p-4 flex items-start gap-4 transition-colors ${s.selected ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/50 dark:bg-gray-800/20 opacity-60'}`}>
                         <button 

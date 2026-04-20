@@ -75,8 +75,21 @@ export const ODGPrintTemplate: React.FC<ODGPrintTemplateProps> = ({ data, projec
     return date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const getSceneDetails = (sceneId: string) => {
-    return projectScenes.find(s => s.id === sceneId);
+  const getSceneDetails = (s: ODGSceneEntry) => {
+    if (s.isManual && s.manualData) {
+      return {
+        id: s.sceneId,
+        sceneNumber: s.manualData.sceneNumber || '-',
+        intExt: (s.manualData.intExt || 'INT') as never,
+        dayNight: (s.manualData.dayNight || 'GIORNO') as never,
+        slugline: s.manualData.slugline || 'SCENA MANUALE',
+        locationName: s.manualData.locationName || '',
+        elementIds: [],
+        pageCountInEighths: s.manualData.pages || '',
+        manualCastIds: s.manualData.castIds || ''
+      };
+    }
+    return projectScenes.find(sc => sc.id === s.sceneId);
   };
 
   const selectedScenes = data.scenes.filter(s => s.selected);
@@ -84,7 +97,7 @@ export const ODGPrintTemplate: React.FC<ODGPrintTemplateProps> = ({ data, projec
   const calculateTotalPages = () => {
     let totalEighths = 0;
     selectedScenes.forEach(s => {
-      const details = getSceneDetails(s.sceneId);
+      const details = getSceneDetails(s);
       if (details?.pageCountInEighths) {
         const parts = details.pageCountInEighths.split(' ');
         if (parts.length === 1) {
@@ -236,7 +249,20 @@ export const ODGPrintTemplate: React.FC<ODGPrintTemplateProps> = ({ data, projec
         </thead>
         <tbody className="divide-y divide-black">
           {selectedScenes.map(s => {
-            const details = getSceneDetails(s.sceneId);
+            const details = getSceneDetails(s);
+            // Handling for manualCastIds
+            let castDisplay = '-';
+            if (s.isManual && s.manualData?.castIds) {
+              castDisplay = s.manualData.castIds;
+            } else if (details?.elementIds) {
+              castDisplay = details.elementIds
+                .map(eid => elements.find(e => e.id === eid))
+                .filter(e => e && (e.category === 'Cast' || e.category?.toLowerCase() === 'cast'))
+                .map(e => e?.castId || '')
+                .filter(id => id !== '')
+                .join(', ') || '-';
+            }
+
             return (
               <tr key={s.sceneId} className="divide-x divide-black">
                 <td className="p-1">{details?.sceneNumber}</td>
@@ -244,14 +270,7 @@ export const ODGPrintTemplate: React.FC<ODGPrintTemplateProps> = ({ data, projec
                 <td className="p-1 uppercase">{details?.dayNight}</td>
                 <td className="p-1 text-left">{details?.slugline} {s.notes && <span className="block text-[8px] italic">{s.notes}</span>}</td>
                 <td className="p-1 uppercase font-bold">{details?.locationName}</td>
-                <td className="p-1">
-                  {details?.elementIds
-                    .map(eid => elements.find(e => e.id === eid))
-                    .filter(e => e && (e.category === 'Cast' || e.category?.toLowerCase() === 'cast'))
-                    .map(e => e?.castId || '')
-                    .filter(id => id !== '')
-                    .join(', ')}
-                </td>
+                <td className="p-1">{castDisplay}</td>
                 <td className="p-1">{data.shootDayNumber}</td>
                 <td className="p-1">{details?.pageCountInEighths}</td>
               </tr>
@@ -289,9 +308,14 @@ export const ODGPrintTemplate: React.FC<ODGPrintTemplateProps> = ({ data, projec
               
               // Calculate scenes for this cast member
               const castScenes = selectedScenes.filter(s => {
-                const details = getSceneDetails(s.sceneId);
-                return details?.elementIds.includes(el?.id || '');
-              }).map(s => getSceneDetails(s.sceneId)?.sceneNumber).filter(Boolean).join(', ');
+                if (s.isManual && s.manualData?.castIds) {
+                  // check if castId (el?.castId) is in the comma separated string
+                  const ids = s.manualData.castIds.split(',').map(str => str.trim());
+                  return ids.includes(String(el?.castId));
+                }
+                const details = getSceneDetails(s);
+                return details?.elementIds?.includes(el?.id || '');
+              }).map(s => getSceneDetails(s)?.sceneNumber).filter(Boolean).join(', ');
 
               return (
                 <tr key={c.id} className="divide-x divide-black">
