@@ -28,28 +28,21 @@ export const ODGPrintTemplate: React.FC<ODGPrintTemplateProps> = ({ data, projec
     );
     
     const allCalls = [...explicitCalls, ...inferredCalls];
-    const renderedRoles = new Set<string>();
+    const rows = allCalls.map(call => ({
+      role: call.role,
+      name: call.name,
+      time: call.callTime
+    }));
     
-    const rows = predefinedRoles.map(role => {
-      const call = allCalls.find(c => c.role.toLowerCase() === role.toLowerCase());
-      renderedRoles.add(role.toLowerCase());
-      return {
-        role: role,
-        name: call ? call.name : '',
-        time: call ? call.callTime : data.startTime
-      };
-    });
-    
-    allCalls.forEach(call => {
-      if (!renderedRoles.has(call.role.toLowerCase())) {
-        rows.push({
-          role: call.role,
-          name: call.name,
-          time: call.callTime
-        });
-        renderedRoles.add(call.role.toLowerCase());
-      }
-    });
+    // Add empty rows as "spazi sotto" if there are fewer than 4 members
+    const minRows = 4;
+    while (rows.length < minRows) {
+      rows.push({
+        role: '',
+        name: '',
+        time: ''
+      });
+    }
     
     return rows;
   };
