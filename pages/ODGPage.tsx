@@ -67,10 +67,13 @@ export const ODGPage: React.FC = () => {
     setProjects(data);
     
     const currentId = localStorage.getItem('currentProjectId');
-    if (currentId) {
+    if (currentId && (data.find(p => p.id === currentId) || currentId === 'generic')) {
       setSelectedProjectId(currentId);
     } else if (data.length > 0) {
       setSelectedProjectId(data[0].id);
+    } else {
+      // Default to generic if no projects exist
+      setSelectedProjectId('generic');
     }
     setLoading(false);
   };
@@ -78,8 +81,15 @@ export const ODGPage: React.FC = () => {
   const loadODGData = async () => {
     setLoading(true);
     const existingOdg = await db.getODG(selectedProjectId, selectedDate);
-    const scenes = await db.getProjectScenes(selectedProjectId);
-    const elementsData = await db.getElements(selectedProjectId);
+    
+    let scenes: Scene[] = [];
+    let elementsData: ProductionElement[] = [];
+    
+    if (selectedProjectId !== 'generic') {
+      scenes = await db.getProjectScenes(selectedProjectId);
+      elementsData = await db.getElements(selectedProjectId);
+    }
+    
     setProjectScenes(scenes);
     setElements(elementsData);
 
@@ -576,7 +586,9 @@ export const ODGPage: React.FC = () => {
               onChange={(e) => setSelectedProjectId(e.target.value)}
               className="bg-gray-100 dark:bg-gray-800 border-none rounded-lg text-sm font-bold p-2 focus:ring-2 focus:ring-blue-500"
             >
+              {projects.length === 0 && <option value="generic">Nuovo ODG</option>}
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {projects.length > 0 && <option value="generic">+ Nuovo ODG (Libero)</option>}
             </select>
           </div>
           <div className="flex flex-col gap-1">
@@ -588,7 +600,7 @@ export const ODGPage: React.FC = () => {
               className="bg-gray-100 dark:bg-gray-800 border-none rounded-lg text-sm font-bold p-2 focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <Button variant="secondary" onClick={syncFromPdl} className="h-10" title="Sincronizza scene e cast dal PDL">
+          <Button variant="secondary" onClick={syncFromPdl} disabled={selectedProjectId === 'generic'} className="h-10" title={selectedProjectId === 'generic' ? "Crea scene manualmente per ODG liberi" : "Sincronizza scene e cast dal PDL"}>
             <RefreshCw size={18} />
             <span className="hidden md:inline">Sincronizza</span>
           </Button>
