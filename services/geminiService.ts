@@ -194,15 +194,15 @@ Se un reparto raggruppa più persone, assegna quel reparto a tutte le persone di
       ];
     } else {
       // Use base64 for PDF
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      const chunkSize = 8192;
-      let binary = '';
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize);
-        binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
-      }
-      const base64 = window.btoa(binary);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       
       parts = [
         {
@@ -217,12 +217,7 @@ Se un reparto raggruppa più persone, assegna quel reparto a tutte le persone di
 
     const response = await ai.models.generateContent({
       model: modelId,
-      contents: [
-        {
-          role: 'user',
-          parts: parts
-        }
-      ],
+      contents: { parts },
       config: {
         systemInstruction,
         responseMimeType: "application/json",
