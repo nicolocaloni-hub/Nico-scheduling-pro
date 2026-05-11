@@ -10,6 +10,7 @@ import { useTranslation } from '../services/i18n';
 import { useLongPress } from '../hooks/useLongPress';
 import { AddDayModal } from './AddDayModal';
 import { BreakdownModal } from './BreakdownModal';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const getMovieMagicColor = (intExt: string, dayNight: string) => {
   const ie = (intExt || '').toUpperCase();
@@ -401,8 +402,68 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
     setShowAddDayModal(false);
   };
 
-  // ... (renderStrip remains mostly same, just check logic)
-  const renderStrip = (strip: Strip) => {
+  const handleDragEnd = async (result: DropResult) => {
+    const { source, destination } = result;
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const getListForDroppable = (droppableId: string): Strip[] => {
+        if (droppableId === 'unscheduled') return [...unscheduledStrips];
+        const day = droppableId.replace('day-', '');
+        return [...(groupedStrips[day] || [])];
+    }
+
+    const sourceList = getListForDroppable(source.droppableId);
+    const destList = getListForDroppable(destination.droppableId);
+
+    const sourceStrip = sourceList[source.index];
+    if (!sourceStrip) return;
+
+    const destDay = destination.droppableId === 'unscheduled' ? undefined : destination.droppableId.replace('day-', '');
+
+    const scene = scenes[sourceStrip.sceneId];
+    if (!scene) return;
+
+    if (source.droppableId === destination.droppableId) {
+        const newList = Array.from(sourceList);
+        const [movedStrip] = newList.splice(source.index, 1);
+        newList.splice(destination.index, 0, movedStrip);
+
+        const updatedStrips = board.strips.map(s => {
+            const idx = newList.findIndex(ns => ns.id === s.id);
+            if (idx !== -1) return { ...s, order: idx };
+            return s;
+        });
+        
+        const updatedBoard = { ...board, strips: updatedStrips };
+        onUpdate(updatedBoard);
+        await db.saveStripboard(updatedBoard);
+    } else {
+        const sourceListCopy = Array.from(sourceList);
+        const destListCopy = Array.from(destList);
+        const [movedStrip] = sourceListCopy.splice(source.index, 1);
+        destListCopy.splice(destination.index, 0, movedStrip);
+
+        const updatedStrips = board.strips.map(s => {
+            if (s.id === movedStrip.id) return { ...s, order: destination.index };
+            const destIdx = destListCopy.findIndex(x => x.id === s.id);
+            if (destIdx !== -1) return { ...s, order: destIdx };
+            const sourceIdx = sourceListCopy.findIndex(x => x.id === s.id);
+            if (sourceIdx !== -1) return { ...s, order: sourceIdx };
+            return s;
+        });
+
+        const updatedScene = { ...scene, shootDay: destDay };
+        await db.updateScene(updatedScene);
+        if (onSceneUpdate) onSceneUpdate(updatedScene);
+
+        const updatedBoard = { ...board, strips: updatedStrips };
+        onUpdate(updatedBoard);
+        await db.saveStripboard(updatedBoard);
+    }
+  };
+
+  const renderStrip = (strip: Strip, index: number) => {
     const scene = scenes[strip.sceneId];
     if (!scene) return null;
 
@@ -452,46 +513,53 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
     const mmColor = printSetup?.useMovieMagicColors ? getMovieMagicColor(scene.intExt, scene.dayNight) : null;
 
     return (
-        <div 
-        key={strip.id} 
-        onClick={() => setEditingScene(scene)}
-        className={`p-3 rounded border flex justify-between items-center hover:border-primary-500 dark:hover:border-primary-500 cursor-pointer shadow-sm overflow-hidden mb-2 transition-colors ${mmColor ? `${mmColor.bg} border-gray-300 dark:border-gray-600` : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}
-        >
-        <div className="flex items-center gap-1 w-full">
-            <div className="flex flex-col gap-0 shrink-0">
-            <button 
-                onClick={(e) => { e.stopPropagation(); moveStrip(strip.id, 'up'); }}
-                className="text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400 hover:scale-110 transition-all disabled:opacity-30 p-0.5 leading-none"
-                disabled={!canMoveUp}
-                aria-label="Sposta su"
-            >
-                <ChevronUp size={20} strokeWidth={2.5} />
-            </button>
-            <button 
-                onClick={(e) => { e.stopPropagation(); moveStrip(strip.id, 'down'); }}
-                className="text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400 hover:scale-110 transition-all disabled:opacity-30 p-0.5 leading-none"
-                disabled={!canMoveDown}
-                aria-label="Sposta giù"
-            >
-                <ChevronDown size={20} strokeWidth={2.5} />
-            </button>
-            </div>
-            <span className={`font-bold w-6 text-center shrink-0 ${mmColor ? mmColor.text : 'text-gray-900 dark:text-white'}`}>{scene.sceneNumber}</span>
-            <div className="flex-1 min-w-0 ml-1">
-            <div className={`text-xs font-bold truncate ${mmColor ? mmColor.text : 'text-gray-700 dark:text-gray-300'}`}>
-                {scene.intExt} {scene.setName} - {scene.dayNight}
-            </div>
-            <div className={`text-[10px] truncate ${mmColor ? mmColor.text : 'text-gray-500'}`}>
-                {scene.synopsis}
-            </div>
-            {castNames && (
-                <div className={`text-[10px] truncate mt-0.5 font-medium ${mmColor ? mmColor.text : 'text-primary-600 dark:text-primary-400'}`}>
-                    {castNames}
+        <Draggable draggableId={strip.id} index={index} key={strip.id}>
+            {(provided, snapshot) => (
+                <div 
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    onClick={() => setEditingScene(scene)}
+                    className={`p-3 rounded border flex justify-between items-center hover:border-primary-500 dark:hover:border-primary-500 cursor-pointer shadow-sm overflow-hidden mb-2 transition-colors ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary-500 z-50' : ''} ${mmColor ? `${mmColor.bg} border-gray-300 dark:border-gray-600` : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}
+                    style={provided.draggableProps.style}
+                >
+                    <div className="flex items-center gap-1 w-full">
+                        <div className="flex flex-col gap-0 shrink-0">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); moveStrip(strip.id, 'up'); }}
+                            className="text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400 hover:scale-110 transition-all disabled:opacity-30 p-0.5 leading-none"
+                            disabled={!canMoveUp}
+                            aria-label="Sposta su"
+                        >
+                            <ChevronUp size={20} strokeWidth={2.5} />
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); moveStrip(strip.id, 'down'); }}
+                            className="text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400 hover:scale-110 transition-all disabled:opacity-30 p-0.5 leading-none"
+                            disabled={!canMoveDown}
+                            aria-label="Sposta giù"
+                        >
+                            <ChevronDown size={20} strokeWidth={2.5} />
+                        </button>
+                        </div>
+                        <span className={`font-bold w-6 text-center shrink-0 ${mmColor ? mmColor.text : 'text-gray-900 dark:text-white'}`}>{scene.sceneNumber}</span>
+                        <div className="flex-1 min-w-0 ml-1">
+                        <div className={`text-xs font-bold truncate ${mmColor ? mmColor.text : 'text-gray-700 dark:text-gray-300'}`}>
+                            {scene.intExt} {scene.setName} - {scene.dayNight}
+                        </div>
+                        <div className={`text-[10px] truncate ${mmColor ? mmColor.text : 'text-gray-500'}`}>
+                            {scene.synopsis}
+                        </div>
+                        {castNames && (
+                            <div className={`text-[10px] truncate mt-0.5 font-medium ${mmColor ? mmColor.text : 'text-primary-600 dark:text-primary-400'}`}>
+                                {castNames}
+                            </div>
+                        )}
+                        </div>
+                    </div>
                 </div>
             )}
-            </div>
-        </div>
-        </div>
+        </Draggable>
     );
   };
 
@@ -548,30 +616,42 @@ export const PlanAccordionItem: React.FC<PlanAccordionItemProps> = ({
              </div>
            </div>
 
-           <div className="space-y-6">
-             {/* Unscheduled */}
-             {unscheduledStrips && unscheduledStrips.length > 0 && (
-                <div>
-                    <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest mb-2">
-                        {projectName || 'NON PROGRAMMATO'}
-                    </div>
-                    {unscheduledStrips.map(strip => renderStrip(strip))}
-                </div>
-             )}
+           <DragDropContext onDragEnd={handleDragEnd}>
+             <div className="space-y-6">
+               {/* Unscheduled */}
+               {unscheduledStrips && unscheduledStrips.length > 0 && (
+                  <Droppable droppableId="unscheduled">
+                      {(provided) => (
+                          <div ref={provided.innerRef} {...provided.droppableProps}>
+                              <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest mb-2">
+                                  {projectName || 'NON PROGRAMMATO'}
+                              </div>
+                              {unscheduledStrips.map((strip, index) => renderStrip(strip, index))}
+                              {provided.placeholder}
+                          </div>
+                      )}
+                  </Droppable>
+               )}
 
-             {/* Scheduled Days */}
-             {allDays.map(day => (
-                 <div key={day}>
-                     <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded text-center text-xs font-bold text-primary-700 dark:text-primary-400 uppercase tracking-widest mb-2 border border-primary-200 dark:border-primary-800">
-                        {new Date(day).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                     </div>
-                     {groupedStrips[day]?.map(strip => renderStrip(strip))}
-                     {(!groupedStrips[day] || groupedStrips[day].length === 0) && (
-                         <div className="text-center text-xs text-gray-400 italic py-2">Nessuna scena assegnata</div>
-                     )}
-                 </div>
-             ))}
-           </div>
+               {/* Scheduled Days */}
+               {allDays.map(day => (
+                   <Droppable droppableId={`day-${day}`} key={day}>
+                       {(provided) => (
+                           <div ref={provided.innerRef} {...provided.droppableProps}>
+                               <div className="bg-primary-100 dark:bg-primary-900/30 p-2 rounded text-center text-xs font-bold text-primary-700 dark:text-primary-400 uppercase tracking-widest mb-2 border border-primary-200 dark:border-primary-800">
+                                  {new Date(day).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                               </div>
+                               {groupedStrips[day]?.map((strip, index) => renderStrip(strip, index))}
+                               {(!groupedStrips[day] || groupedStrips[day].length === 0) && (
+                                   <div className="text-center text-xs text-gray-400 italic py-2">Nessuna scena assegnata</div>
+                               )}
+                               {provided.placeholder}
+                           </div>
+                       )}
+                   </Droppable>
+               ))}
+             </div>
+           </DragDropContext>
         </div>
       )}
 
