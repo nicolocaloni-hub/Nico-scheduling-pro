@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ODGPrintTemplate } from '../components/ODGPrintTemplate';
-import { extractCrewFromDocument } from '../services/geminiService';
+import { parseDocumentLocally } from '../services/documentParser';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -351,7 +351,7 @@ export const ODGPage: React.FC = () => {
 
     setIsImportingCrew(true);
     try {
-      const extractedCrew = await extractCrewFromDocument(file);
+      const extractedCrew = await parseDocumentLocally(file);
       
       if (extractedCrew.length === 0) {
         alert("Non è stato possibile trovare membri della troupe nel documento. Assicurati che il formato sia corretto.");
@@ -1258,7 +1258,7 @@ export const ODGPage: React.FC = () => {
                     type="file"
                     ref={crewFileInputRef}
                     onChange={handleCrewImport}
-                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    accept=".pdf,application/pdf"
                     className="hidden"
                     disabled={isImportingCrew}
                   />
@@ -1291,7 +1291,14 @@ export const ODGPage: React.FC = () => {
                     <tr key={c.id}>
                       <td className="px-4 py-2">
                         <div className="flex flex-col">
-                          {c.department && <span className="text-[9px] text-gray-400 font-bold uppercase">{c.department}</span>}
+                          <input
+                            type="text"
+                            value={c.department || ''}
+                            onChange={(e) => updateCallEntry('crew', c.id, 'department', e.target.value)}
+                            className="w-full bg-transparent border-none p-0 focus:ring-0 text-[9px] text-gray-400 font-bold uppercase"
+                            placeholder="Reparto"
+                            aria-label="Reparto troupe"
+                          />
                           <input 
                             type="text" 
                             value={c.role}
@@ -1568,3 +1575,4 @@ export const ODGPage: React.FC = () => {
     </div>
   );
 };
+
