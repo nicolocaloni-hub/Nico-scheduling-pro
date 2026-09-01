@@ -1,7 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { BreakdownResult, Scene } from "../types";
-import * as mammoth from 'mammoth';
 
 export const parseEighthsToFloat = (eighthsStr: string): number => {
   if (!eighthsStr) return 0;
@@ -151,100 +150,6 @@ Sii meticoloso. Se un oggetto è importante per l'azione o menzionato nella desc
         status: 500,
         error: error.message
       });
-    }
-    throw error;
-  }
-};
-
-export const extractCrewFromDocument = async (
-  file: File,
-  onDebugInfo?: (info: any) => void
-): Promise<{ department: string, role: string, name: string }[]> => {
-  const modelId = 'gemini-2.5-flash-lite';
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
-
-  const systemInstruction = `Sei un esperto assistente di produzione. Il tuo compito è estrarre i membri della troupe da un documento.
-Il documento contiene tabelle o elenchi con i membri della troupe.
-Cerca le informazioni relative a "REPARTI TROUPE" (o Reparto/Qualifica), "RUOLO" e "NOME".
-Ignora altre informazioni come numeri di telefono o intolleranze.
-
-Restituisci un array JSON di oggetti con la seguente struttura:
-[
-  {
-    "department": "Nome del reparto (es. PRODUZIONE, REGIA, FOTOGRAFIA)",
-    "role": "Ruolo della persona (es. Organizzatore di produzione, Regista, DOP)",
-    "name": "Nome e cognome della persona"
-  }
-]
-Se un reparto raggruppa più persone, assegna quel reparto a tutte le persone di quel gruppo.`;
-
-  try {
-    if (onDebugInfo) {
-      onDebugInfo({ status: 'analyzing', message: 'Estrazione membri troupe in corso...' });
-    }
-
-    let parts: any[] = [];
-
-    if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
-      // Use mammoth to extract text from docx
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      parts = [
-        { text: "Estrai i membri della troupe da questo testo estratto da un documento Word:\n\n" + result.value }
-      ];
-    } else {
-      // Use base64 for PDF
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(',')[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      
-      parts = [
-        {
-          inlineData: {
-            data: base64,
-            mimeType: file.type || 'application/pdf'
-          }
-        },
-        { text: "Estrai i membri della troupe da questo documento." }
-      ];
-    }
-
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: { parts },
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              department: { type: Type.STRING, description: "Reparto (es. PRODUZIONE, REGIA)" },
-              role: { type: Type.STRING, description: "Ruolo (es. Regista, DOP)" },
-              name: { type: Type.STRING, description: "Nome e cognome" }
-            },
-            required: ["department", "role", "name"]
-          }
-        },
-        temperature: 0.1
-      }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("Risposta vuota da Gemini");
-
-    const data = JSON.parse(text);
-    return data;
-  } catch (error: any) {
-    if (onDebugInfo) {
-      onDebugInfo({ status: 'error', error: error.message });
     }
     throw error;
   }
