@@ -15,6 +15,7 @@ interface ColumnLayout {
   departmentX: number;
   nameX: number;
   roleX: number;
+  trailingX?: number;
   contactX?: number;
   detailsX?: number;
 }
@@ -67,17 +68,51 @@ const appendCell = (base: string, continuation: string) => {
 const matchesHeader = (value: string, pattern: RegExp) => pattern.test(normalizeLabel(value));
 
 const findColumnLayout = (items: PositionedText[]): ColumnLayout | null => {
-  const department = items.find(item => matchesHeader(item.text, HEADER_PATTERNS.department));
-  const name = items.find(item => matchesHeader(item.text, HEADER_PATTERNS.name));
-  const role = items.find(item => matchesHeader(item.text, HEADER_PATTERNS.role));
+  const nonCrewMarkers = items.filter(item => NON_CREW_SECTION.test(normalizeLabel(item.text)));
+  const names = items
+    .filter(item => matchesHeader(item.text, HEADER_PATTERNS.name))
+    .sort((a, b) => b.y - a.y);
+  const header = names.map(name => {
+    const role = items
+      .filter(item => (
+        item.x > name.x
+        && Math.abs(item.y - name.y) <= 3
+        && matchesHeader(item.text, HEADER_PATTERNS.role)
+      ))
+      .sort((a, b) => a.x - b.x)[0];
+    return role ? { name, role } : null;
+  }).find(candidate => (
+    candidate
+    && !nonCrewMarkers.some(marker => marker.y > candidate.name.y + 3)
+  ));
 
-  if (!name || !role || role.x <= name.x) return null;
+  if (!header) return null;
+
+  const { name, role } = header;
+  const department = items
+    .filter(item => (
+      item.x < name.x
+      && Math.abs(item.y - name.y) <= 3
+      && matchesHeader(item.text, HEADER_PATTERNS.department)
+    ))
+    .sort((a, b) => b.x - a.x)[0];
+  const trailing = items
+    .filter(item => item.x > role.x && Math.abs(item.y - role.y) <= 3)
+    .sort((a, b) => a.x - b.x)[0];
 
   const contact = items
-    .filter(item => item.x > role.x && matchesHeader(item.text, HEADER_PATTERNS.contact))
+    .filter(item => (
+      item.x > role.x
+      && Math.abs(item.y - role.y) <= 3
+      && matchesHeader(item.text, HEADER_PATTERNS.contact)
+    ))
     .sort((a, b) => a.x - b.x)[0];
   const details = items
-    .filter(item => item.x > role.x && matchesHeader(item.text, HEADER_PATTERNS.details))
+    .filter(item => (
+      item.x > role.x
+      && Math.abs(item.y - role.y) <= 3
+      && matchesHeader(item.text, HEADER_PATTERNS.details)
+    ))
     .sort((a, b) => a.x - b.x)[0];
 
   const estimatedDepartmentX = Math.max(0, name.x - (role.x - name.x));
@@ -86,6 +121,7 @@ const findColumnLayout = (items: PositionedText[]): ColumnLayout | null => {
     departmentX: department?.x ?? estimatedDepartmentX,
     nameX: name.x,
     roleX: role.x,
+    trailingX: trailing?.x,
     contactX: contact?.x,
     detailsX: details?.x,
   };
@@ -114,7 +150,7 @@ const lineToCells = (items: PositionedText[], columns: ColumnLayout): ParsedLine
   const cells: ParsedLine = { department: '', name: '', role: '', contact: '', details: '' };
   const departmentEnd = (columns.departmentX + columns.nameX) / 2;
   const nameEnd = (columns.nameX + columns.roleX) / 2;
-  const firstTrailingX = columns.contactX ?? columns.detailsX;
+  const firstTrailingX = columns.trailingX ?? columns.contactX ?? columns.detailsX;
   const roleEnd = firstTrailingX === undefined
     ? Number.POSITIVE_INFINITY
     : (columns.roleX + firstTrailingX) / 2;
@@ -175,6 +211,14 @@ export const extractCrewFromPositionedPages = (pages: PositionedText[][]): Parse
     if (!columns) continue;
 
     for (const positionedLine of groupIntoLines(pageItems)) {
+      const rawLineLabel = normalizeLabel(
+        positionedLine.map(item => item.text).join(' ')
+      );
+      if (NON_CREW_SECTION.test(rawLineLabel)) {
+        reachedNonCrewSection = true;
+        break;
+      }
+
       const line = lineToCells(positionedLine, columns);
       const departmentLabel = normalizeLabel(line.department);
       const linePosition = {
@@ -214,7 +258,23 @@ export const extractCrewFromPositionedPages = (pages: PositionedText[][]): Parse
         continue;
       }
 
-      if (line.name && (line.role || line.contact)) {
+      const isAdjacentToCurrent = Boolean(
+        currentMemberLine
+        && currentMemberLine.pageIndex === pageIndex
+        && Math.abs(currentMemberLine.y - linePosition.y) <= Math.max(
+          4,
+          Math.max(currentMemberLine.height, linePosition.height) * 1.6
+        )
+      );
+
+      if (line.name && line.role) {
+        if (currentMember && isAdjacentToCurrent && !line.contact && !line.details) {
+          currentMember.name = appendCell(currentMember.name, line.name);
+          currentMember.role = appendCell(currentMember.role, line.role);
+          currentMemberLine = linePosition;
+          continue;
+        }
+
         currentMember = {
           department: currentDepartment,
           name: cleanCell(line.name),
@@ -226,7 +286,7 @@ export const extractCrewFromPositionedPages = (pages: PositionedText[][]): Parse
       }
 
       if (line.name) {
-        if (currentMember) {
+        if (currentMember && isAdjacentToCurrent) {
           currentMember.name = appendCell(currentMember.name, line.name);
         } else {
           currentMember = {
@@ -240,13 +300,7 @@ export const extractCrewFromPositionedPages = (pages: PositionedText[][]): Parse
       }
 
       if (line.role && currentMember) {
-        const isAdjacentLine = currentMemberLine
-          && currentMemberLine.pageIndex === pageIndex
-          && Math.abs(currentMemberLine.y - linePosition.y) <= Math.max(
-            4,
-            Math.max(currentMemberLine.height, linePosition.height) * 1.6
-          );
-        if (isAdjacentLine) {
+        if (isAdjacentToCurrent) {
           currentMember.role = appendCell(currentMember.role, line.role);
           currentMemberLine = linePosition;
         } else {
@@ -264,7 +318,7 @@ export const extractCrewFromPositionedPages = (pages: PositionedText[][]): Parse
       name: cleanCell(member.name),
       role: cleanCell(member.role),
     };
-    if (!isUsableName(cleaned.name)) continue;
+    if (!isUsableName(cleaned.name) || !cleaned.role) continue;
 
     const key = [cleaned.department, cleaned.role, cleaned.name]
       .map(normalizeLabel)
