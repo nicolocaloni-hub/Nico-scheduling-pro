@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useRef, ReactNode } from 'react';
 import { ImportState } from '../components/AiStatusBar';
-import { analyzeScriptPdf } from '../services/geminiService';
 import { db } from '../services/store';
 
 interface AnalysisContextType {
@@ -29,7 +28,7 @@ interface AnalysisContextType {
   addLog: (msg: string) => void;
   startAnalysis: (projectId: string) => Promise<void>;
   resetAnalysisState: () => void;
-  saveResultsToDb: (data: any, targetProjectId: string, fileName: string) => Promise<void>;
+  saveResultsToDb: (data: any, targetProjectId: string, fileName: string, analysisInfo?: { summary: any; modelUsed?: string }) => Promise<void>;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -45,6 +44,8 @@ export const AnalysisProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [previewData, setPreviewData] = useState<any>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [analysisStartTime, setAnalysisStartTime] = useState<number | null>(null);
+  const analysisRun = useRef(0);
+  const analysisBusy = useRef(false);
 
   const addLog = (msg: string) => {
     console.log(msg);
@@ -52,6 +53,8 @@ export const AnalysisProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const resetAnalysisState = () => {
+    analysisRun.current++;
+    analysisBusy.current = false;
     setSummary(null);
     setPreviewData(null);
     setModelUsed(undefined);
@@ -63,7 +66,7 @@ export const AnalysisProvider: React.FC<{ children: ReactNode }> = ({ children }
     setAnalysisStartTime(null);
   };
 
-  const saveResultsToDb = async (data: any, targetProjectId: string, fileName: string) => {
+  const saveResultsToDb = async (data: any, targetProjectId: string, fileName: string, analysisInfo?: { summary: any; modelUsed?: string }) => {
     if (!targetProjectId) return;
     
     addLog("Sincronizzazione database locale...");
@@ -99,7 +102,6 @@ export const AnalysisProvider: React.FC<{ children: ReactNode }> = ({ children }
     });
 
     const allElementsToSave = [...elements, ...additionalElements];
-    await db.saveElements(targetProjectId, allElementsToSave);
 
     // Get project to check for shootDays
     const projects = await db.getProjects();
@@ -148,76 +150,43 @@ export const AnalysisProvider: React.FC<{ children: ReactNode }> = ({ children }
         pageCountInEighths: s.pageCountInEighths || '0 1/8',
         pages: parseEighthsToFloat(s.pageCountInEighths || '0 1/8'),
         synopsis: s.synopsis || '',
+        scriptText: s.scriptText || '',
         elementIds,
         shootDay: assignedDay
       };
     });
 
-    await db.saveScenes(targetProjectId, scenes);
-    await db.createDefaultStripboard(targetProjectId, scenes);
-    await db.saveScriptVersion({
-      id: crypto.randomUUID(),
-      projectId: targetProjectId,
-      fileName: fileName,
-      fileUrl: '#local',
-      version: 1,
-      createdAt: new Date().toISOString()
-    });
+    await db.saveImportedScript(targetProjectId, scenes, allElementsToSave, fileName,
+      analysisInfo ? { ...analysisInfo, data, fileName } : undefined);
   };
 
   const startAnalysis = async (projectId: string) => {
-    if (!selectedFile) return;
+    if (!selectedFile || analysisBusy.current) return;
+    analysisBusy.current = true;
+    const run = ++analysisRun.current;
+    const isCurrent = () => run === analysisRun.current && (localStorage.getItem('currentProjectId') || '') === projectId;
     
-    addLog("[UI] startAnalysis triggered");
+    addLog('Lettura del PDF sul dispositivo: nessun invio a servizi AI.');
     setImportState('uploading');
     setError(null);
 
     try {
-      if (projectId) {
-         await db.clearAnalysisResult(projectId);
-      }
-
-      addLog("Conversione file in corso...");
-      
-      const arrayBuffer = await selectedFile.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      const chunkSize = 8192;
-      let binary = '';
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize);
-        binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
-      }
-      const base64 = window.btoa(binary);
-      
-      addLog("Invio a Gemini in corso...");
       setImportState('analyzing');
       setAnalysisStartTime(Date.now());
-      
-      const result = await analyzeScriptPdf(base64, (info) => {
-        const currentPid = localStorage.getItem('currentProjectId') || '';
-        if (currentPid === projectId) {
-          if (info.error) {
-              addLog(`[ERROR] ${info.error}`);
-          } else {
-              addLog(`[INFO] Status: ${info.status}, Model: ${info.modelUsed}`);
-          }
-        }
+      const { analyzeScriptLocally } = await import('../services/localScriptAnalysis');
+      const result = await analyzeScriptLocally(selectedFile, message => {
+        if (isCurrent()) addLog(message);
       });
+      if (!isCurrent()) return;
 
       if (projectId) {
-        await saveResultsToDb(result.data, projectId, selectedFile.name);
-        await db.saveAnalysisResult(projectId, {
-          summary: result.summary,
-          data: result.data,
-          modelUsed: result.modelUsed,
-          fileName: selectedFile?.name
-        });
+        await saveResultsToDb(result.data, projectId, selectedFile.name, result);
       }
 
       // Only update UI if the user hasn't switched to a different project
       const currentPid = localStorage.getItem('currentProjectId') || '';
       if (currentPid === projectId) {
-        addLog(`Analisi completata! Modello: ${result.modelUsed}`);
+        addLog('Analisi locale completata. Controlla l’anteprima dello spoglio.');
         setModelUsed(result.modelUsed);
         setSummary(result.summary);
         setPreviewData(result.data);
@@ -228,11 +197,13 @@ export const AnalysisProvider: React.FC<{ children: ReactNode }> = ({ children }
     } catch (err: any) {
       console.error("Analysis failed:", err);
       const currentPid = localStorage.getItem('currentProjectId') || '';
-      if (currentPid === projectId) {
+      if (currentPid === projectId && run === analysisRun.current) {
         setError(err.message || "Errore sconosciuto durante l'analisi.");
         setImportState('error');
         addLog(`[CRITICAL] ${err.message}`);
       }
+    } finally {
+      if (run === analysisRun.current) analysisBusy.current = false;
     }
   };
 

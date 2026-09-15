@@ -36,9 +36,10 @@ export const ScriptImport: React.FC = () => {
   useEffect(() => {
     const pid = localStorage.getItem('currentProjectId');
     if (!pid) {
-      // Clean state if no project selected
-      setProjectId(null);
-      resetAnalysisState();
+      if (projectId) {
+        setProjectId(null);
+        resetAnalysisState();
+      }
       return;
     } 
     
@@ -50,7 +51,7 @@ export const ScriptImport: React.FC = () => {
 
       // Check for saved analysis
       db.getAnalysisResult(pid).then(saved => {
-        if (saved) {
+        if (saved && localStorage.getItem('currentProjectId') === pid) {
           setSummary(saved.summary);
           setPreviewData(saved.data);
           setModelUsed(saved.modelUsed);
@@ -96,20 +97,18 @@ export const ScriptImport: React.FC = () => {
     // 1. Create the project
     const newProject = await db.createProject(name, type);
     
-    // 2. Set as current project
+    try {
+      if (previewData) {
+        await saveResultsToDb(previewData, newProject.id, selectedFile?.name || 'Sceneggiatura Salvata', { summary, modelUsed });
+      }
+    } catch (err) {
+      await db.deleteProject(newProject.id);
+      setShowCreateModal(false);
+      setError(err instanceof Error ? err.message : 'Salvataggio non riuscito. Riprova.');
+      return;
+    }
     localStorage.setItem('currentProjectId', newProject.id);
     setProjectId(newProject.id);
-
-    // 3. Save the analysis results to this new project if available
-    if (previewData) {
-        await saveResultsToDb(previewData, newProject.id, selectedFile?.name || 'Sceneggiatura Salvata');
-        await db.saveAnalysisResult(newProject.id, {
-            summary,
-            data: previewData,
-            modelUsed,
-            fileName: selectedFile?.name
-        });
-    }
 
     setShowCreateModal(false);
     addLog(`Progetto "${name}" creato con successo.`);
@@ -129,43 +128,36 @@ export const ScriptImport: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Wrap in setTimeout to allow the browser to finish its native file picker handling
-    // and prevent UI blocking or race conditions on mobile devices
-    setTimeout(() => {
+    // Update the selected file synchronously: after an error, a fast click must
+    // never start a second analysis of the previous PDF.
       try {
-        if (file.type !== 'application/pdf') {
+        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+          setSelectedFile(null);
           setError("Il file deve essere un PDF.");
           setImportState('error');
           return;
         }
 
-        // Defer clearing analysis result to startAnalysis to avoid heavy ops during file selection
-        // if (projectId) {
-        //   db.clearAnalysisResult(projectId).catch(err => console.error("Failed to clear analysis result", err));
-        // }
-
-        // Removed URL.revokeObjectURL to prevent potential issues with React rendering cycles
-        
         setSelectedFile(file);
-        // setPdfPreviewUrl(URL.createObjectURL(file)); // Disabled to prevent potential crashes on mobile
         setImportState('selected');
         setError(null);
         setSummary(null);
         setPreviewData(null);
         setModelUsed(undefined);
+        setLogs([]);
         addLog(`File selezionato: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
       } catch (err: any) {
         console.error("Error handling file selection:", err);
         setError("Errore durante la selezione del file. Riprova.");
         setImportState('error');
       }
-    }, 100);
   };
 
-  const checkServerEnv = async () => {
-    addLog("[UI] Controllo ambiente...");
-    const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
-    addLog(`[CLIENT] API Key di sistema presente: ${key ? 'Sì' : 'No'}`);
+  const handleStartAnalysis = async () => {
+    if (projectId && (await db.getProjectScenes(projectId)).length > 0) {
+      if (!window.confirm('Importando questa sceneggiatura sostituirai scene, elementi e piani di lavorazione del progetto corrente. Continuare?')) return;
+    }
+    await startAnalysis(projectId || '');
   };
 
   return (
@@ -179,14 +171,14 @@ export const ScriptImport: React.FC = () => {
         </div>
         
         <div className="flex gap-3 w-full md:w-auto justify-end">
-          {(importState === 'selected' || importState === 'uploading' || importState === 'analyzing') && (
+          {(importState === 'selected' || (importState === 'error' && selectedFile instanceof File) || importState === 'uploading' || importState === 'analyzing') && (
             <Button 
-              onClick={() => startAnalysis(projectId || '')} 
+              onClick={handleStartAnalysis}
               type="button"
               disabled={importState === 'uploading' || importState === 'analyzing'}
               className="w-full md:w-auto"
             >
-              {importState === 'selected' ? t('start_analysis') : 'Attendere...'}
+              {importState === 'selected' || importState === 'error' ? t('start_analysis') : 'Attendere...'}
             </Button>
           )}
           {importState === 'done' && (
@@ -208,6 +200,11 @@ export const ScriptImport: React.FC = () => {
       </div>
 
       <div className="max-w-2xl mx-auto space-y-6">
+          <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4 text-sm text-blue-950 dark:text-blue-100 space-y-2">
+            <p className="font-bold">Spoglio locale, senza AI né chiavi API</p>
+            <p>Il PDF viene letto nel browser. Riconosce scene INT./EST./EXT., location, giorno/notte, nomi sopra i dialoghi ed elementi espliciti tramite regole e dizionari italiani/inglesi.</p>
+            <p>Usa un PDF con testo selezionabile (massimo 50 MB / 500 pagine). Scansioni e fotografie richiedono prima un OCR.</p>
+          </div>
           {/* Picker Compatto */}
           <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 flex items-center justify-between shadow-xl">
             <div className="flex items-center gap-3 overflow-hidden mr-4">
@@ -222,8 +219,9 @@ export const ScriptImport: React.FC = () => {
               <input 
                 ref={fileInputRef}
                 type="file" 
-                className="hidden" 
-                accept="application/pdf" 
+                className="sr-only"
+                accept=".pdf,application/pdf"
+                aria-label="Seleziona sceneggiatura PDF"
                 onChange={handleFileChange} 
                 disabled={importState === 'analyzing' || importState === 'uploading'} 
               />
@@ -237,6 +235,11 @@ export const ScriptImport: React.FC = () => {
             model={modelUsed} 
             startTime={analysisStartTime}
           />
+
+          {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+          {(importState === 'analyzing' || importState === 'uploading') && (
+            <p role="status" aria-live="polite" className="text-sm text-gray-600 dark:text-gray-300">{logs[0]}</p>
+          )}
 
           {/* Results Preview */}
           {summary && importState === 'done' && (
@@ -300,3 +303,4 @@ export const ScriptImport: React.FC = () => {
     </div>
   );
 };
+

@@ -133,6 +133,30 @@ export const db = {
     return state.scenes[projectId] || [];
   },
 
+  // One localStorage write: a quota error must not leave half an imported script.
+  saveImportedScript: async (projectId: string, scenes: Scene[], elements: ProductionElement[], fileName: string, analysisResult?: any): Promise<void> => {
+    const state = loadState();
+    const project = state.projects.find(p => p.id === projectId);
+    if (!project) throw new Error('Il progetto non esiste più. Crea o seleziona un progetto e riprova.');
+    state.scenes[projectId] = scenes;
+    state.elements[projectId] = elements;
+    state.stripboards[projectId] = [{ id: crypto.randomUUID(), projectId, name: 'Main Board',
+      strips: scenes.map((scene, order) => ({ id: crypto.randomUUID(), sceneId: scene.id, order })) }];
+    project.totalScenes = scenes.length;
+    project.totalPages = scenes.reduce((sum, scene) => sum + scene.pages, 0);
+    state.scripts[projectId] = [...(state.scripts[projectId] || []), {
+      id: crypto.randomUUID(), projectId, fileName, fileUrl: '#local',
+      version: (state.scripts[projectId]?.length || 0) + 1, createdAt: new Date().toISOString()
+    }];
+    delete state.analysisResults[projectId];
+    if (analysisResult) state.analysisResults[projectId] = analysisResult;
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      throw new Error('Memoria locale insufficiente: importazione non salvata. I dati precedenti sono rimasti intatti. Esporta un backup e libera spazio.');
+    }
+  },
+
   saveScenes: async (projectId: string, scenes: Scene[]): Promise<void> => {
     const state = loadState();
     state.scenes[projectId] = scenes;

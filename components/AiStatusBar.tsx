@@ -35,8 +35,8 @@ export const AiStatusBar: React.FC<AiStatusBarProps> = ({ status, fileName, mode
     switch (status) {
       case 'idle': return 'PRONTO';
       case 'selected': return 'FILE SELEZIONATO';
-      case 'uploading': return 'CARICAMENTO...';
-      case 'analyzing': return 'ANALISI AI IN CORSO...';
+      case 'uploading': return 'LETTURA PDF...';
+      case 'analyzing': return 'ANALISI LOCALE...';
       case 'done': return 'COMPLETATO';
       case 'error': return 'ERRORE';
       default: return (status as string).toUpperCase();
@@ -84,7 +84,7 @@ export const AiStatusBar: React.FC<AiStatusBarProps> = ({ status, fileName, mode
         {/* Model Info */}
         {model && (
           <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded bg-black/20">
-            <i className="fa-solid fa-robot text-[10px] opacity-70" />
+            <i className="fa-solid fa-laptop text-[10px] opacity-70" />
             <span className="text-[10px] font-mono opacity-80">{model}</span>
           </div>
         )}

@@ -39,7 +39,7 @@ const translations = {
     
     // Script Import
     import_title: 'Importa Sceneggiatura',
-    import_subtitle: 'Pianificazione AI',
+    import_subtitle: 'Spoglio automatico locale · senza chiavi API',
     start_analysis: 'Inizia Analisi',
     reset: 'Reset',
     go_to_pdl: 'Vai al PDL',
@@ -114,7 +114,7 @@ const translations = {
     
     // Script Import
     import_title: 'Import Script',
-    import_subtitle: 'AI Scheduling',
+    import_subtitle: 'Local screenplay breakdown · no API keys',
     start_analysis: 'Start Analysis',
     reset: 'Reset',
     go_to_pdl: 'Go to Stripboard',
